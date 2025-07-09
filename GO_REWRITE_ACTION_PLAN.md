@@ -46,6 +46,46 @@ Rewriting the ControlMe consensual remote control platform from ASP.NET/C# to Go
                     └─────────────────┘
 ```
 
+### WebSocket Architecture for Real-time Features
+
+```
+┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
+│   Web Frontend  │    │   Go Backend    │    │   PostgreSQL    │
+│   (React/Vue)   │◄──►│   (REST API)    │◄──►│   Database      │
+│                 │    │   + WebSocket   │    │                 │
+└─────────────────┘    └─────────────────┘    └─────────────────┘
+         │                       │                       
+         │              ┌─────────────────┐              
+         │              │  WebSocket Hub  │              
+         │              │   (In-Memory)   │              
+         │              └─────────────────┘              
+         │                       │                       
+         │                       ▲                       
+         │                       │ WebSocket             
+         │             ┌─────────────────┐               
+         │             │  Desktop Client │               
+         │             │   (Go binary)   │               
+         │             └─────────────────┘               
+         │                                                
+         └─── WebSocket Connection ──────────────────────┘
+```
+
+#### WebSocket Message Types
+- **Command Messages**: Instant command delivery to desktop clients
+- **Status Updates**: Command completion, errors, client online/offline
+- **Chat Messages**: Real-time messaging between users
+- **Presence Updates**: User online/offline status, typing indicators
+- **Notifications**: System alerts, new invites, reports
+- **Heartbeat**: Keep-alive messages for connection health
+
+#### WebSocket Hub Implementation
+- Connection pool management (users, groups, admins)
+- Message routing and broadcasting
+- User session tracking
+- Rate limiting and spam protection
+- Connection cleanup and garbage collection
+- Message queuing for offline users
+
 ## Phase 1: Project Setup & Database Migration
 
 ### 1.1 Initialize Go Project
@@ -91,26 +131,34 @@ Rewriting the ControlMe consensual remote control platform from ASP.NET/C# to Go
 
 ### 2.2 Desktop Client API Endpoints
 - [ ] `/api/v1/auth/login` - Client authentication
-- [ ] `/api/v1/commands/pending` - Get pending commands count
-- [ ] `/api/v1/commands/fetch` - Fetch command details
+- [ ] `/api/v1/commands/pending` - Get pending commands count (fallback)
+- [ ] `/api/v1/commands/fetch` - Fetch command details (fallback)
 - [ ] `/api/v1/commands/complete` - Mark command as completed
 - [ ] `/api/v1/commands/delete` - Delete outstanding commands
 - [ ] `/api/v1/client/heartbeat` - Client status updates
+- [ ] `/ws/client` - WebSocket endpoint for real-time command delivery
 
 ### 2.3 Web Interface API Endpoints
 - [ ] User management endpoints
-- [ ] Command sending endpoints
+- [ ] Command sending endpoints (with WebSocket push)
 - [ ] Chat/messaging endpoints
 - [ ] Group management endpoints
 - [ ] Blocking/reporting endpoints
 - [ ] File upload endpoints
 - [ ] User settings endpoints
+- [ ] `/ws/web` - WebSocket endpoint for web client real-time features
 
-### 2.4 Real-time Features
-- [ ] WebSocket connection for real-time updates
-- [ ] Live chat functionality
-- [ ] Real-time command status updates
-- [ ] Online user presence
+### 2.4 Real-time Features (WebSocket Integration)
+- [ ] WebSocket connection handler and hub
+- [ ] User session management for WebSocket connections
+- [ ] Real-time command delivery system
+- [ ] Live chat functionality with typing indicators
+- [ ] Real-time command status updates (sent/received/completed)
+- [ ] Online user presence and activity status
+- [ ] WebSocket authentication and authorization
+- [ ] Connection heartbeat and reconnection logic
+- [ ] Message broadcasting to groups/individuals
+- [ ] Real-time notifications system
 
 ## Phase 3: Web Frontend Development
 
@@ -141,10 +189,12 @@ Rewriting the ControlMe consensual remote control platform from ASP.NET/C# to Go
 ### 4.1 Go Desktop Client
 - [ ] Cross-platform GUI framework (Fyne/Wails)
 - [ ] System tray integration
-- [ ] Command polling mechanism
+- [ ] WebSocket connection for real-time commands
+- [ ] Fallback HTTP polling mechanism
 - [ ] Command execution engine
 - [ ] Auto-update functionality
 - [ ] Configuration management
+- [ ] Connection resilience and reconnection logic
 
 ### 4.2 Command Types Implementation
 - [ ] Message box display
@@ -264,6 +314,13 @@ github.com/spf13/viper
 
 // Logging
 github.com/sirupsen/logrus
+
+// WebSocket and Real-time
+github.com/gorilla/websocket
+github.com/go-redis/redis/v8 (for WebSocket scaling)
+
+// Message Queue (optional for high load)
+github.com/streadway/amqp (RabbitMQ)
 ```
 
 ### Database Schema Considerations
@@ -283,11 +340,50 @@ github.com/sirupsen/logrus
 
 ### Performance Targets
 - API response time < 200ms (95th percentile)
-- Support 1000+ concurrent users
+- WebSocket message delivery < 50ms
+- Support 1000+ concurrent WebSocket connections
 - Database queries < 50ms average
 - Desktop client memory usage < 50MB
 - Zero-downtime deployments
+- WebSocket reconnection < 5 seconds
 
+### WebSocket Implementation Details
+
+#### Connection Management
+- **Connection Pool**: In-memory map of active WebSocket connections
+- **User Sessions**: Track multiple connections per user (web + desktop)
+- **Connection Types**: Separate handling for web clients vs desktop clients
+- **Authentication**: JWT token validation for WebSocket connections
+- **Rate Limiting**: Per-connection message rate limiting
+- **Graceful Shutdown**: Clean connection closure and cleanup
+
+#### Message Flow for Commands
+1. **Command Sending**: Web user sends command via REST API
+2. **WebSocket Push**: Server immediately pushes command to target's desktop client
+3. **Status Updates**: Desktop client sends status updates via WebSocket
+4. **Real-time Feedback**: Web user receives instant status updates
+5. **Fallback Mechanism**: REST API polling as backup for WebSocket failures
+
+#### WebSocket Message Format
+```json
+{
+  "type": "command|status|chat|presence|notification",
+  "id": "unique-message-id",
+  "timestamp": "2025-07-09T12:00:00Z",
+  "from": "user-id",
+  "to": "user-id|group-id",
+  "data": {
+    // Message-specific payload
+  }
+}
+```
+
+#### Performance Considerations
+- **Connection Pooling**: Efficient memory management for thousands of connections
+- **Message Queuing**: Queue messages for offline users
+- **Horizontal Scaling**: Redis pub/sub for multi-server WebSocket scaling
+- **Compression**: WebSocket message compression for large payloads
+- **Heartbeat**: Regular ping/pong to detect dead connections
 ## Risk Assessment
 
 ### High Priority Risks
