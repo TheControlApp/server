@@ -110,6 +110,8 @@ Rewriting the ControlMe consensual remote control platform from ASP.NET/C# to Go
 - [ ] Convert stored procedures to Go functions
 - [ ] Create database connection pool
 - [ ] Implement database models with GORM/sqlx
+- [ ] Legacy data migration and validation
+- [ ] Backup and rollback procedures
 
 ### 1.3 Security Improvements
 - [ ] Implement proper password hashing (bcrypt)
@@ -138,6 +140,18 @@ Rewriting the ControlMe consensual remote control platform from ASP.NET/C# to Go
 - [ ] `/api/v1/client/heartbeat` - Client status updates
 - [ ] `/ws/client` - WebSocket endpoint for real-time command delivery
 
+### 2.2.1 Legacy Client Support Endpoints (Exact Path Matching)
+- [ ] `/AppCommand.aspx` - Legacy command polling with exact query parameter handling
+- [ ] `/GetContent.aspx` - Legacy command fetching with exact response format
+- [ ] `/GetCount.aspx` - Legacy command count with exact XML/text response
+- [ ] `/ProcessComplete.aspx` - Legacy command completion with exact behavior
+- [ ] `/DeleteOut.aspx` - Legacy command deletion with exact response format
+- [ ] `/GetOptions.aspx` - Legacy options with exact parameter handling
+- [ ] Legacy authentication with exact username/password/version parameter handling
+- [ ] Version detection via `vrs=012` parameter (exact match)
+- [ ] Exact query string parameter parsing (`usernm`, `pwd`, `vrs`, `cmd`)
+- [ ] Exact response format matching (XML/plain text as expected by .NET client)
+
 ### 2.3 Web Interface API Endpoints
 - [ ] User management endpoints
 - [ ] Command sending endpoints (with WebSocket push)
@@ -159,6 +173,36 @@ Rewriting the ControlMe consensual remote control platform from ASP.NET/C# to Go
 - [ ] Connection heartbeat and reconnection logic
 - [ ] Message broadcasting to groups/individuals
 - [ ] Real-time notifications system
+- [ ] Legacy client upgrade notifications via WebSocket (for mixed environments)
+
+## Phase 2.5: Legacy Migration Support
+
+### 2.5.1 Legacy Client Bridge (Exact Compatibility Layer)
+- [ ] Exact ASP.NET Web Forms URL routing (`/AppCommand.aspx`, `/GetContent.aspx`, etc.)
+- [ ] Exact query parameter handling (`usernm`, `pwd`, `vrs`, `cmd`)
+- [ ] Legacy crypto decryption for passwords (exact algorithm match)
+- [ ] Exact response format matching (XML/plain text as current system)
+- [ ] Legacy user session management with exact cookie handling
+- [ ] Legacy file upload handling with exact form data processing
+- [ ] Exact error message format matching for client compatibility
+- [ ] Legacy stored procedure result format translation
+- [ ] Exact HTTP status code and header matching
+
+### 2.5.2 Upgrade Notification System
+- [ ] Version detection middleware
+- [ ] Configurable upgrade message templates
+- [ ] Progressive notification escalation
+- [ ] Download link generation and tracking
+- [ ] Usage analytics for legacy vs new clients
+- [ ] Admin dashboard for migration progress
+
+### 2.5.3 Migration Tools
+- [ ] User data migration verification
+- [ ] Command history migration
+- [ ] Legacy client usage reports
+- [ ] Automated migration testing
+- [ ] Rollback procedures for failed migrations
+- [ ] Migration status tracking per user
 
 ## Phase 3: Web Frontend Development
 
@@ -321,6 +365,10 @@ github.com/go-redis/redis/v8 (for WebSocket scaling)
 
 // Message Queue (optional for high load)
 github.com/streadway/amqp (RabbitMQ)
+
+// Legacy Support
+github.com/gorilla/mux (for legacy URL routing)
+golang.org/x/crypto/des (for legacy crypto compatibility)
 ```
 
 ### Database Schema Considerations
@@ -384,6 +432,7 @@ github.com/streadway/amqp (RabbitMQ)
 - **Horizontal Scaling**: Redis pub/sub for multi-server WebSocket scaling
 - **Compression**: WebSocket message compression for large payloads
 - **Heartbeat**: Regular ping/pong to detect dead connections
+
 ## Risk Assessment
 
 ### High Priority Risks
@@ -391,6 +440,7 @@ github.com/streadway/amqp (RabbitMQ)
 2. **Security Vulnerabilities** - Mitigation: Security audit and penetration testing
 3. **User Adoption** - Mitigation: Gradual rollout and user training
 4. **Performance Degradation** - Mitigation: Load testing and optimization
+5. **Legacy Client Compatibility** - Mitigation: Extensive testing and gradual migration
 
 ### Medium Priority Risks
 1. **Third-party Dependencies** - Mitigation: Dependency management and alternatives
@@ -404,12 +454,14 @@ github.com/streadway/amqp (RabbitMQ)
 - < 200ms API response time
 - Zero security vulnerabilities
 - 100% test coverage on critical paths
+- > 90% legacy client migration rate within 12 weeks
 
 ### User Metrics
 - User satisfaction > 90%
 - Bug reports < 1% of active users
 - Feature adoption > 80%
 - Support tickets < 5% of active users
+- Legacy client complaints < 10% during migration
 
 ## Timeline Estimate
 
@@ -435,3 +487,166 @@ github.com/streadway/amqp (RabbitMQ)
 ---
 
 *This document is a living plan and should be updated as the project progresses and requirements evolve.*
+
+## Legacy Support Strategy
+
+### Overview
+Maintain compatibility with existing .NET desktop clients during the transition period while encouraging users to upgrade to the new Go-based client.
+
+### Legacy Client Support Architecture (In-Place Swap)
+```
+┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
+│   New Go Client │    │   Go Backend    │    │   PostgreSQL    │
+│   (WebSocket)   │◄──►│   (REST API)    │◄──►│   Database      │
+│                 │    │   + WebSocket   │    │                 │
+└─────────────────┘    └─────────────────┘    └─────────────────┘
+                              ▲
+                              │ HTTP (Exact .aspx paths)
+                    ┌─────────────────┐
+                    │  Legacy Client  │
+                    │  (.NET/30sec)   │
+                    │  /AppCommand.aspx│
+                    │  /GetContent.aspx│
+                    └─────────────────┘
+```
+
+### Legacy Endpoints (Exact Compatibility for In-Place Swap)
+- [ ] `/AppCommand.aspx` - Legacy command polling (30-second interval)
+- [ ] `/GetContent.aspx` - Legacy command fetching  
+- [ ] `/GetCount.aspx` - Legacy command count
+- [ ] `/ProcessComplete.aspx` - Legacy command completion
+- [ ] `/DeleteOut.aspx` - Legacy command deletion
+- [ ] `/Messages.aspx` - Legacy messaging support
+- [ ] `/Upload.aspx` - Legacy file upload
+- [ ] `/GetOptions.aspx` - Legacy options retrieval
+- [ ] `/AppSendContent.aspx` - Legacy content sending
+- [ ] `/BlockReport.aspx` - Legacy blocking/reporting
+- [ ] `/NGROK.aspx` - Legacy NGROK functionality
+- [ ] `/Default.aspx` - Legacy home page
+- [ ] `/Pages/Login.aspx` - Legacy login page
+- [ ] `/Pages/Register.aspx` - Legacy registration page
+- [ ] `/Pages/ControlPC.aspx` - Legacy control interface
+
+### Legacy Authentication
+- [ ] Support existing username/password authentication
+- [ ] Convert legacy crypto to modern JWT for new features
+- [ ] Maintain cookie-based sessions for legacy clients
+- [ ] Gradual migration path for user credentials
+
+### Version Detection and Upgrade Prompts
+- [ ] Client version detection in all legacy endpoints
+- [ ] Configurable upgrade message system
+- [ ] Progressive upgrade notifications (daily -> hourly -> constant)
+- [ ] Upgrade download links and instructions
+- [ ] Grace period configuration for legacy client support
+
+### Update Notification System
+- [ ] **Gentle Reminders**: "New version available! Check it out!"
+- [ ] **Persistent Notifications**: "Hey! There's a new version out! Fucking update!"
+- [ ] **Urgent Warnings**: "Legacy support ending soon - UPDATE NOW!"
+- [ ] **Forced Upgrades**: Block legacy clients after grace period
+- [ ] **Custom Messages**: Admin-configurable upgrade messages
+
+### Implementation Details
+- [ ] Legacy endpoint wrapper around new API
+- [ ] Database migration for existing user data
+- [ ] Command format translation between old/new systems
+- [ ] Gradual feature deprecation timeline
+- [ ] Legacy client usage analytics and monitoring
+
+### Legacy Client Migration Timeline
+
+#### Phase 1: Soft Launch (Weeks 1-4)
+- Deploy Go backend with legacy endpoints
+- Monitor legacy client usage
+- Gentle upgrade notifications: "New version available!"
+- Collect migration metrics and user feedback
+
+#### Phase 2: Active Migration (Weeks 5-8)
+- Increase notification frequency
+- More assertive messages: "Hey! There's a new version out! Fucking update!"
+- Provide migration guides and support
+- Track adoption rates and address migration blockers
+
+#### Phase 3: Forced Migration (Weeks 9-12)
+- Daily persistent notifications
+- Feature limitations for legacy clients
+- "Legacy support ending soon - UPDATE NOW!"
+- Direct user outreach for holdouts
+
+#### Phase 4: Legacy Sunset (Week 13+)
+- Block legacy client logins
+- Redirect to download page
+- Emergency support for critical users only
+- Complete migration to new system
+
+### Legacy Client Detection and Messaging
+
+#### Version Detection
+```go
+// Detect legacy client by exact version parameter matching
+if version := r.URL.Query().Get("vrs"); version == "012" {
+    // Legacy client detected - handle with exact compatibility
+    return handleLegacyClient(w, r, version)
+}
+```
+
+#### Exact Response Format Examples
+```go
+// AppCommand.aspx response format (exact match)
+fmt.Fprintf(w, "%s\n%s\n%s\n%s", count, nextSender, verified, thumbsUp)
+
+// GetContent.aspx response format (exact match)  
+fmt.Fprintf(w, "%s\n%s", senderID, commandContent)
+
+// GetCount.aspx response format (exact match)
+fmt.Fprintf(w, "%s", commandCount)
+```
+
+#### Upgrade Message Examples
+- **Week 1-2**: "📱 New ControlMe client available! Better performance and features await!"
+- **Week 3-4**: "⚡ Upgrade to the new client for instant commands (no more 30-second delays!)"
+- **Week 5-6**: "🔥 Hey! There's a new version out! Fucking update! WebSocket speed awaits!"
+- **Week 7-8**: "⚠️ Legacy support ending soon - UPDATE NOW! Don't get left behind!"
+- **Week 9+**: "🚫 Legacy client support has ended. Please download the new client to continue."
+
+### Legacy Feature Limitations
+- [ ] Gradual feature restrictions for legacy clients
+- [ ] Reduced command priority for legacy users
+- [ ] Limited file upload sizes for legacy clients
+- [ ] Restricted group features for legacy clients
+- [ ] Read-only mode before complete sunset
+
+### In-Place Swap Requirements
+
+#### Exact URL Matching
+```go
+// Current .NET client expects these exact paths:
+GET /AppCommand.aspx?usernm=user&pwd=encrypted&vrs=012&cmd=Outstanding
+GET /GetContent.aspx?usernm=user&pwd=encrypted&vrs=012  
+GET /GetCount.aspx?usernm=user&pwd=encrypted&vrs=012
+POST /ProcessComplete.aspx?usernm=user&pwd=encrypted&vrs=012
+```
+
+#### Exact Parameter Handling
+- **usernm**: Username parameter (exact spelling)
+- **pwd**: Encrypted password using legacy crypto
+- **vrs**: Version parameter (currently "012")
+- **cmd**: Command type parameter for AppCommand.aspx
+
+#### Exact Response Format Matching
+- **AppCommand.aspx**: Plain text response with command count and user info
+- **GetContent.aspx**: Plain text with SenderId and command content
+- **GetCount.aspx**: Plain text with command count
+- **ProcessComplete.aspx**: Plain text success/error response
+
+#### Legacy Crypto Compatibility
+- [ ] Decrypt passwords using exact same algorithm as current C# CryptoHelper
+- [ ] Maintain exact same encryption/decryption behavior
+- [ ] Support legacy password format during transition
+
+#### Database Query Compatibility
+- [ ] Exact same stored procedure behavior simulation
+- [ ] Same result set format and column order
+- [ ] Identical error handling and messages
+- [ ] Same database connection string handling
