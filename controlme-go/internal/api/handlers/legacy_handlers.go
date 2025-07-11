@@ -5,11 +5,13 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 	"github.com/thecontrolapp/controlme-go/internal/auth"
 	"github.com/thecontrolapp/controlme-go/internal/config"
+	"github.com/thecontrolapp/controlme-go/internal/models"
 	"github.com/thecontrolapp/controlme-go/internal/services"
 	"gorm.io/gorm"
 )
@@ -46,95 +48,130 @@ func (h *LegacyHandlers) AppCommand(c *gin.Context) {
 	// Initialize result
 	result := ""
 
-	// Validate required parameters
-	if usernm == "" || pwd == "" {
-		result = "Missing required parameters"
-	} else if vrs != "012" && vrs != "" {
-		result = "Unsupported version"
-	} else {
+	// Validate version first (legacy behavior)
+	if vrs == "012" {
 		// Authenticate user
 		user, err := h.userService.AuthenticateLegacyUser(usernm, pwd)
 		if err != nil {
-			result = "Authentication failed"
+			result = err.Error()
 		} else {
 			// Handle different command types
 			switch cmd {
 			case "Outstanding":
 				// Get outstanding command count and sender info (like USP_GetOutstanding)
-				count, err := h.cmdService.GetPendingCommandCount(user.ID)
+				// 1. Delete commands from blocked users
+				h.db.Where("sender_id IN (SELECT blockee_id FROM blocks WHERE blocker_id = ?) AND sub_id = ?", user.ID, user.ID).Delete(&models.ControlAppCmd{})
+				
+				// 2. Delete anonymous commands if user doesn't allow them
+				if !user.AnonCmd {
+					h.db.Where("sender_id = ? AND sub_id = ?", "00000000-0000-0000-0000-000000000001", user.ID).Delete(&models.ControlAppCmd{})
+				}
+
+				// 3. Update login date
+				user.LoginDate = time.Now()
+				h.db.Save(&user)
+
+				// 4. Get command count and next sender info
+				var count int64
+				err = h.db.Model(&models.ControlAppCmd{}).Where("sub_id = ?", user.ID).Count(&count).Error
 				if err != nil {
-					result = "Failed to get outstanding commands"
+					result = "Failed to get command count"
 				} else {
-					// Format: [count],[whonext],[verified],[thumbs]
-					// For now, simplified version - could enhance with relationship/group logic
-					whonext := "User" // Simplified - in legacy this checks relationships/groups
-					verified := "0"   // User.Verified field
-					thumbs := "0"     // User.ThumbsUp field
+					whonext := "User"
+					verified := "0"
+					if user.Verified {
+						verified = "1"
+					}
+					thumbs := strconv.Itoa(user.ThumbsUp)
+
+					// Get next sender info
+					var assignment models.ControlAppCmd
+					err = h.db.Preload("Sender").
+						Where("sub_id = ?", user.ID).
+						Order("created_at ASC").
+						First(&assignment).Error
+
+					if err == nil {
+						// Check if it's a group command
+						if assignment.GroupRefID != nil {
+							var group models.Group
+							err := h.db.First(&group, "id = ?", assignment.GroupRefID).Error
+							if err == nil {
+								whonext = "Group: " + group.Name
+							} else {
+								whonext = "Group"
+							}
+						} else if assignment.SenderID.String() == "00000000-0000-0000-0000-000000000001" {
+							whonext = "Anon"
+						} else {
+							// Check if sender is in a relationship with the user
+							var relationship models.Relationship
+							err = h.db.Where("dom_id = ? AND sub_id = ?", assignment.SenderID, user.ID).First(&relationship).Error
+							if err == nil {
+								whonext = assignment.Sender.ScreenName
+							} else {
+								whonext = "User"
+							}
+						}
+					}
+
+					// Format exactly like USP_GetOutstanding: [count],[whonext],[verified],[thumbs]
 					result = fmt.Sprintf("[%d],[%s],[%s],[%s]", count, whonext, verified, thumbs)
 				}
 
 			case "Content":
 				// Get next command content (like USP_GetAppContent)
-				assignment, err := h.cmdService.GetNextCommand(user.ID)
-				if err != nil {
-					result = "Failed to get content"
-				} else if assignment == nil {
-					result = "" // No commands
-				} else {
+				// 1. Delete commands from blocked users
+				h.db.Where("sender_id IN (SELECT blockee_id FROM blocks WHERE blocker_id = ?) AND sub_id = ?", user.ID, user.ID).Delete(&models.ControlAppCmd{})
+				
+				// 2. Delete anonymous commands if user doesn't allow them
+				if !user.AnonCmd {
+					h.db.Where("sender_id = ? AND sub_id = ?", "00000000-0000-0000-0000-000000000001", user.ID).Delete(&models.ControlAppCmd{})
+				}
+
+				// 3. Get next command
+				var assignment models.ControlAppCmd
+				err = h.db.Preload("Sender").Preload("Command").
+					Where("sub_id = ?", user.ID).
+					Order("created_at ASC").
+					First(&assignment).Error
+
+				if err == nil {
 					// Format: [SenderId],[Content] or [SenderId],[Content],[SenderName]
 					senderName := assignment.Sender.ScreenName
 					if senderName == "" {
-						result = fmt.Sprintf("[%s],[%s]", assignment.SenderID.String(), assignment.Command.Data)
+						result = fmt.Sprintf("[%s],[%s]", assignment.SenderID.String(), assignment.Command.Content)
 					} else {
-						result = fmt.Sprintf("[%s],[%s],[%s]", assignment.SenderID.String(), assignment.Command.Data, senderName)
+						result = fmt.Sprintf("[%s],[%s],[%s]", assignment.SenderID.String(), assignment.Command.Content, senderName)
 					}
-					// Mark command as completed
+					// Mark command as completed (exec USP_CmdComplete)
 					_ = h.cmdService.CompleteCommand(user.ID)
 				}
 
 			default:
-				// Legacy behavior for sending commands (original AppCommand logic)
-				from := c.Query("From")
-				to := c.Query("To")
-				data := c.Query("Data")
-				password := c.Query("Password")
-
-				if from == "" || to == "" || data == "" || password == "" {
-					result = "Missing command parameters"
-				} else {
-					// Get recipient
-					recipient, err := h.userService.GetUserByUsername(to)
-					if err != nil {
-						result = "Recipient not found"
-					} else {
-						// Decrypt command data
-						decryptedData, err := h.authService.LegacyCrypto.Decrypt(data)
-						if err != nil {
-							result = "Failed to decrypt command data"
-						} else {
-							// Parse command data (format: "command|additional_data")
-							parts := strings.SplitN(decryptedData, "|", 2)
-							commandType := parts[0]
-							commandContent := ""
-							if len(parts) > 1 {
-								commandContent = parts[1]
-							}
-
-							// Create command
-							command, err := h.cmdService.CreateCommand(commandType, commandContent, data)
-							if err != nil {
-								result = "Failed to create command"
-							} else {
-								// Assign command to recipient
-								_, err = h.cmdService.AssignCommandToUser(user.ID, recipient.ID, command.ID, nil)
-								if err != nil {
-									result = "Failed to assign command"
-								} else {
-									result = "OK"
-								}
-							}
-						}
+				// Handle other command types (Accept, Reject, Thumbs, etc.)
+				if len(cmd) > 6 {
+					switch cmd[:6] {
+					case "Accept":
+						// USP_AcceptInvite
+						inviteFrom := cmd[6:]
+						// TODO: Implement invite acceptance logic
+						result = "Invite accepted: " + inviteFrom
+					case "Reject":
+						// USP_DeleteInvite
+						inviteFrom := cmd[6:]
+						// TODO: Implement invite rejection logic
+						result = "Invite rejected: " + inviteFrom
+					case "Thumbs":
+						// USP_thumbsup
+						thumbsValue := cmd[6:]
+						// TODO: Implement thumbs up logic
+						result = "Thumbs up: " + thumbsValue
+					default:
+						result = "Unknown command: " + cmd
 					}
+				} else {
+					result = "Unknown command: " + cmd
 				}
 			}
 		}
@@ -150,7 +187,7 @@ func (h *LegacyHandlers) AppCommand(c *gin.Context) {
 <body>
     <form id="form1" runat="server">
         <div>
-            <span id="result">%s</span>
+            <asp:Label ID="result" runat="server">%s</asp:Label>
         </div>
     </form>
 </body>
@@ -162,7 +199,7 @@ func (h *LegacyHandlers) AppCommand(c *gin.Context) {
 }
 
 // GetContent handles legacy /GetContent.aspx endpoint
-// Original: Gets pending commands for a client
+// Original: Gets pending commands for a client (USP_GetAppContent)
 func (h *LegacyHandlers) GetContent(c *gin.Context) {
 	// Get query parameters (exact legacy format)
 	usernm := c.Query("usernm")
@@ -174,36 +211,40 @@ func (h *LegacyHandlers) GetContent(c *gin.Context) {
 	result := ""
 	verified := ""
 
-	// Validate required parameters and version
-	if usernm == "" || pwd == "" {
-		result = "Missing required parameters"
-	} else if vrs != "012" && vrs != "" {
-		result = "Unsupported version"
-	} else {
+	// Validate version first (legacy behavior)
+	if vrs == "012" {
 		// Authenticate user (decrypt password first)
 		user, err := h.userService.AuthenticateLegacyUser(usernm, pwd)
-		if err != nil {
-			result = "Authentication failed"
-		} else {
-			// Get next pending command for user
-			assignment, err := h.cmdService.GetNextCommand(user.ID)
-			if err != nil {
-				result = "Failed to get commands"
-			} else if assignment == nil {
-				// No commands found, leave result empty (legacy behavior)
-			} else {
-				// Format response exactly like legacy stored procedure
-				// Legacy stores user IDs as integers, but we use UUIDs - need to convert or use a mapping
-				senderID = assignment.SenderID.String()
-				result = assignment.Command.Data
+		if err == nil && user != nil {
+			// Implement exact USP_GetAppContent logic
+			// 1. Delete commands from blocked users
+			h.db.Where("sender_id IN (SELECT blockee_id FROM blocks WHERE blocker_id = ?) AND sub_id = ?", user.ID, user.ID).Delete(&models.ControlAppCmd{})
+			
+			// 2. Delete anonymous commands if user doesn't allow them
+			if !user.AnonCmd {
+				h.db.Where("sender_id = ? AND sub_id = ?", "00000000-0000-0000-0000-000000000001", user.ID).Delete(&models.ControlAppCmd{})
+			}
 
-				// Mark command as completed (legacy behavior: exec USP_CmdComplete)
+			// 3. Get next command with sender info (TOP 1 ORDER BY SendDate)
+			var assignment models.ControlAppCmd
+			err = h.db.Preload("Command").Preload("Sender").
+				Where("sub_id = ?", user.ID).
+				Order("created_at ASC").
+				First(&assignment).Error
+
+			if err == nil {
+				// Format response exactly like USP_GetAppContent stored procedure
+				senderID = assignment.SenderID.String()
+				result = assignment.Command.Content // Use Content field, not Data
+				verified = assignment.Sender.ScreenName // SenderName from stored procedure
+				
+				// Mark command as completed (exec USP_CmdComplete)
 				_ = h.cmdService.CompleteCommand(user.ID)
 			}
 		}
 	}
 
-	// Return HTML response matching original ASP.NET page structure
+	// Return HTML response matching exact ASP.NET page structure
 	html := fmt.Sprintf(`<!DOCTYPE html>
 
 <html xmlns="http://www.w3.org/1999/xhtml">
@@ -213,9 +254,9 @@ func (h *LegacyHandlers) GetContent(c *gin.Context) {
 <body>
     <form id="form1" runat="server">
         <div>
-            <span id="SenderId">%s</span>
-            <span id="Result">%s</span>
-            <span id="Varified">%s</span>
+            <asp:Label ID="SenderId" runat="server">%s</asp:Label>
+            <asp:Label ID="Result" runat="server">%s</asp:Label>
+            <asp:Label ID="Varified" runat="server">%s</asp:Label>
         </div>
     </form>
 </body>
@@ -227,40 +268,106 @@ func (h *LegacyHandlers) GetContent(c *gin.Context) {
 }
 
 // GetCount handles legacy /GetCount.aspx endpoint
-// Original: Gets count of pending commands
+// Original: Gets count of pending commands (USP_GetOutstanding)
 func (h *LegacyHandlers) GetCount(c *gin.Context) {
 	// Get query parameters (exact legacy format)
-	user := c.Query("usernm")
-	password := c.Query("pwd")
-	version := c.Query("vrs")
+	usernm := c.Query("usernm")
+	pwd := c.Query("pwd")
+	vrs := c.Query("vrs")
 
-	if user == "" || password == "" {
-		c.String(http.StatusBadRequest, "Missing required parameters")
-		return
+	// Initialize response variables
+	result := ""
+	next := ""
+	vari := ""
+
+	// Validate version first (legacy behavior)
+	if vrs == "012" {
+		// Authenticate user (decrypt password first)
+		user, err := h.userService.AuthenticateLegacyUser(usernm, pwd)
+		if err == nil && user != nil {
+			// Implement exact USP_GetOutstanding logic
+			// 1. Delete commands from blocked users
+			h.db.Where("sender_id IN (SELECT blockee_id FROM blocks WHERE blocker_id = ?) AND sub_id = ?", user.ID, user.ID).Delete(&models.ControlAppCmd{})
+			
+			// 2. Delete anonymous commands if user doesn't allow them
+			if !user.AnonCmd {
+				h.db.Where("sender_id = ? AND sub_id = ?", "00000000-0000-0000-0000-000000000001", user.ID).Delete(&models.ControlAppCmd{})
+			}
+
+			// 3. Update login date
+			user.LoginDate = time.Now()
+			h.db.Save(&user)
+
+			// 4. Get command count
+			var count int64
+			err = h.db.Model(&models.ControlAppCmd{}).Where("sub_id = ?", user.ID).Count(&count).Error
+			if err == nil {
+				result = strconv.FormatInt(count, 10)
+			}
+
+			// 5. Get "whonext" info - who is the next sender
+			var assignment models.ControlAppCmd
+			err = h.db.Preload("Sender").
+				Where("sub_id = ?", user.ID).
+				Order("created_at ASC").
+				First(&assignment).Error
+
+			if err == nil {
+				// Check if it's a group command
+				if assignment.GroupRefID != nil {
+					var group models.Group
+					err := h.db.First(&group, "id = ?", assignment.GroupRefID).Error
+					if err == nil {
+						next = "Group: " + group.Name
+					} else {
+						next = "Group"
+					}
+				} else if assignment.SenderID.String() == "00000000-0000-0000-0000-000000000001" {
+					next = "Anon"
+				} else {
+					// Check if sender is in a relationship with the user
+					var relationship models.Relationship
+					err = h.db.Where("dom_id = ? AND sub_id = ?", assignment.SenderID, user.ID).First(&relationship).Error
+					if err == nil {
+						next = assignment.Sender.ScreenName
+					} else {
+						next = "User"
+					}
+				}
+			} else {
+				next = "User" // Default if no commands
+			}
+
+			// 6. Set verified status
+			if user.Verified {
+				vari = "1"
+			} else {
+				vari = "0"
+			}
+		}
 	}
 
-	// Check version for legacy compatibility
-	if version != "012" && version != "" {
-		c.String(http.StatusBadRequest, "Unsupported version")
-		return
-	}
+	// Return HTML response matching exact ASP.NET page structure
+	html := fmt.Sprintf(`<!DOCTYPE html>
 
-	// Authenticate user
-	authenticatedUser, err := h.userService.AuthenticateLegacyUser(user, password)
-	if err != nil {
-		c.String(http.StatusUnauthorized, "Authentication failed")
-		return
-	}
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head runat="server">
+    <title></title>
+</head>
+<body>
+    <form id="form1" runat="server">
+        <div>
+            <asp:Label ID="result" runat="server">%s</asp:Label>
+            <asp:Label ID="next" runat="server">%s</asp:Label>
+            <asp:Label ID="vari" runat="server">%s</asp:Label>
+        </div>
+    </form>
+</body>
+</html>
+`, result, next, vari)
 
-	// Get command count
-	count, err := h.cmdService.GetPendingCommandCount(authenticatedUser.ID)
-	if err != nil {
-		c.String(http.StatusInternalServerError, "Failed to get command count")
-		return
-	}
-
-	// Return count as string (legacy format)
-	c.String(http.StatusOK, strconv.FormatInt(count, 10))
+	c.Header("Content-Type", "text/html; charset=utf-8")
+	c.String(http.StatusOK, html)
 }
 
 // ProcessComplete handles legacy /ProcessComplete.aspx endpoint
