@@ -4,11 +4,10 @@ import (
 	"net/http"
 	"time"
 
-	"workspace/server/controlme-go/internal/auth"
-
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 	"github.com/sirupsen/logrus"
+	"github.com/thecontrolapp/controlme-go/internal/auth"
 )
 
 // Logger returns a Gin middleware for logging requests

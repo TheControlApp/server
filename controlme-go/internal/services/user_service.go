@@ -62,47 +62,25 @@ func (us *UserService) AuthenticateLegacyUser(username, encryptedPassword string
 	return us.AuthenticateUser(username, decryptedPassword)
 }
 
-// CreateUser creates a new user
-func (us *UserService) CreateUser(screenName, loginName, password, role string) (*models.User, error) {
-	// Check if user already exists
-	var existingUser models.User
-	err := us.db.Where("login_name = ?", loginName).First(&existingUser).Error
-	if err == nil {
-		return nil, fmt.Errorf("user with login name already exists")
-	}
-
-	// Hash password
-	hashedPassword, err := us.auth.PasswordManager.HashPassword(password)
-	if err != nil {
-		return nil, fmt.Errorf("failed to hash password: %w", err)
-	}
-
-	// Create user
-	user := models.User{
-		ID:         uuid.New(),
-		ScreenName: screenName,
-		LoginName:  loginName,
-		Password:   hashedPassword,
-		Role:       role,
-		Verified:   false,
-		CreatedAt:  time.Now(),
-		UpdatedAt:  time.Now(),
-		LoginDate:  time.Now(),
-	}
-
-	err = us.db.Create(&user).Error
-	if err != nil {
-		return nil, fmt.Errorf("failed to create user: %w", err)
-	}
-
-	return &user, nil
-}
-
 // CreateUserRequest is used for creating a new user via modern API
 type CreateUserRequest struct {
 	LoginName  string `json:"login_name" binding:"required"`
 	ScreenName string `json:"screen_name" binding:"required"`
 	Password   string `json:"password" binding:"required"`
+}
+
+// CreateUser creates a new user with the modern API
+func (us *UserService) CreateUser(req CreateUserRequest) (*models.User, error) {
+	user := models.User{
+		LoginName:  req.LoginName,
+		ScreenName: req.ScreenName,
+		Password:   req.Password, // Use modern hash
+	}
+	err := us.db.Create(&user).Error
+	if err != nil {
+		return nil, err
+	}
+	return &user, nil
 }
 
 // GetAllUsers returns all users
@@ -134,20 +112,6 @@ func (us *UserService) GetUserByUsername(username string) (*models.User, error) 
 			return nil, fmt.Errorf("user not found")
 		}
 		return nil, fmt.Errorf("database error: %w", err)
-	}
-	return &user, nil
-}
-
-// CreateUser creates a new user with the modern API
-func (us *UserService) CreateUser(req CreateUserRequest) (*models.User, error) {
-	user := models.User{
-		LoginName:  req.LoginName,
-		ScreenName: req.ScreenName,
-		Password:   req.Password, // Use modern hash
-	}
-	err := us.db.Create(&user).Error
-	if err != nil {
-		return nil, err
 	}
 	return &user, nil
 }

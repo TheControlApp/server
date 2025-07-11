@@ -22,6 +22,7 @@ func SetupRoutes(router *gin.Engine, db *gorm.DB, hub *websocket.Hub, cfg *confi
 
 	// Initialize handlers
 	legacyHandlers := handlers.NewLegacyHandlers(db, userService, cmdService, authService, cfg)
+	userHandlers := handlers.NewUserHandlers(userService)
 
 	// Health check endpoint
 	router.GET("/health", func(c *gin.Context) {
@@ -57,12 +58,9 @@ func SetupRoutes(router *gin.Engine, db *gorm.DB, hub *websocket.Hub, cfg *confi
 		}
 
 		// User routes
-		users := v1.Group("/users")
-		{
-			users.GET("", handlers.GetUsers)
-			users.GET("/:id", handlers.GetUserByID)
-			users.POST("", handlers.CreateUser)
-		}
+		v1.GET("/users", userHandlers.GetUsers)
+		v1.GET("/users/:id", userHandlers.GetUserByID)
+		v1.POST("/users", userHandlers.CreateUser)
 	}
 
 	// WebSocket routes
