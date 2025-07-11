@@ -19,9 +19,10 @@ func SetupRoutes(router *gin.Engine, db *gorm.DB, hub *websocket.Hub, cfg *confi
 	authService := auth.NewAuthService(cfg.Legacy.CryptoKey, cfg.Auth.JWTSecret, jwtExpiration)
 	userService := services.NewUserService(db, authService)
 	cmdService := services.NewCommandService(db)
+	legacyService := services.NewLegacyService(db, authService)
 
 	// Initialize handlers
-	legacyHandlers := handlers.NewLegacyHandlers(db, userService, cmdService, authService, cfg)
+	legacyHandlers := handlers.NewLegacyHandlers(db, userService, cmdService, legacyService, authService, cfg)
 	userHandlers := handlers.NewUserHandlers(userService)
 
 	// Health check endpoint

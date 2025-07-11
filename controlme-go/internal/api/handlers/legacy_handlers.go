@@ -5,34 +5,34 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
-	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 	"github.com/thecontrolapp/controlme-go/internal/auth"
 	"github.com/thecontrolapp/controlme-go/internal/config"
-	"github.com/thecontrolapp/controlme-go/internal/models"
 	"github.com/thecontrolapp/controlme-go/internal/services"
 	"gorm.io/gorm"
 )
 
 // LegacyHandlers contains handlers for legacy ASP.NET endpoints
 type LegacyHandlers struct {
-	db          *gorm.DB
-	userService *services.UserService
-	cmdService  *services.CommandService
-	authService *auth.AuthService
-	config      *config.Config
+	db            *gorm.DB
+	userService   *services.UserService
+	cmdService    *services.CommandService
+	legacyService *services.LegacyService
+	authService   *auth.AuthService
+	config        *config.Config
 }
 
 // NewLegacyHandlers creates a new legacy handlers instance
-func NewLegacyHandlers(db *gorm.DB, userService *services.UserService, cmdService *services.CommandService, authService *auth.AuthService, cfg *config.Config) *LegacyHandlers {
+func NewLegacyHandlers(db *gorm.DB, userService *services.UserService, cmdService *services.CommandService, legacyService *services.LegacyService, authService *auth.AuthService, cfg *config.Config) *LegacyHandlers {
 	return &LegacyHandlers{
-		db:          db,
-		userService: userService,
-		cmdService:  cmdService,
-		authService: authService,
-		config:      cfg,
+		db:            db,
+		userService:   userService,
+		cmdService:    cmdService,
+		legacyService: legacyService,
+		authService:   authService,
+		config:        cfg,
 	}
 }
 
@@ -50,131 +50,114 @@ func (h *LegacyHandlers) AppCommand(c *gin.Context) {
 
 	// Validate version first (legacy behavior)
 	if vrs == "012" {
-		// Authenticate user
-		user, err := h.userService.AuthenticateLegacyUser(usernm, pwd)
+		// Decrypt password using legacy crypto
+		decryptedPwd, err := h.authService.LegacyCrypto.Decrypt(pwd)
 		if err != nil {
-			result = err.Error()
+			result = "Failed to decrypt password"
 		} else {
-			// Handle different command types
-			switch cmd {
-			case "Outstanding":
-				// Get outstanding command count and sender info (like USP_GetOutstanding)
-				// 1. Delete commands from blocked users
-				h.db.Where("sender_id IN (SELECT blockee_id FROM blocks WHERE blocker_id = ?) AND sub_id = ?", user.ID, user.ID).Delete(&models.ControlAppCmd{})
-				
-				// 2. Delete anonymous commands if user doesn't allow them
-				if !user.AnonCmd {
-					h.db.Where("sender_id = ? AND sub_id = ?", "00000000-0000-0000-0000-000000000001", user.ID).Delete(&models.ControlAppCmd{})
-				}
-
-				// 3. Update login date
-				user.LoginDate = time.Now()
-				h.db.Save(&user)
-
-				// 4. Get command count and next sender info
-				var count int64
-				err = h.db.Model(&models.ControlAppCmd{}).Where("sub_id = ?", user.ID).Count(&count).Error
-				if err != nil {
-					result = "Failed to get command count"
-				} else {
-					whonext := "User"
-					verified := "0"
-					if user.Verified {
-						verified = "1"
-					}
-					thumbs := strconv.Itoa(user.ThumbsUp)
-
-					// Get next sender info
-					var assignment models.ControlAppCmd
-					err = h.db.Preload("Sender").
-						Where("sub_id = ?", user.ID).
-						Order("created_at ASC").
-						First(&assignment).Error
-
-					if err == nil {
-						// Check if it's a group command
-						if assignment.GroupRefID != nil {
-							var group models.Group
-							err := h.db.First(&group, "id = ?", assignment.GroupRefID).Error
-							if err == nil {
-								whonext = "Group: " + group.Name
-							} else {
-								whonext = "Group"
-							}
-						} else if assignment.SenderID.String() == "00000000-0000-0000-0000-000000000001" {
-							whonext = "Anon"
-						} else {
-							// Check if sender is in a relationship with the user
-							var relationship models.Relationship
-							err = h.db.Where("dom_id = ? AND sub_id = ?", assignment.SenderID, user.ID).First(&relationship).Error
-							if err == nil {
-								whonext = assignment.Sender.ScreenName
-							} else {
-								whonext = "User"
-							}
-						}
-					}
-
-					// Format exactly like USP_GetOutstanding: [count],[whonext],[verified],[thumbs]
-					result = fmt.Sprintf("[%d],[%s],[%s],[%s]", count, whonext, verified, thumbs)
-				}
-
-			case "Content":
-				// Get next command content (like USP_GetAppContent)
-				// 1. Delete commands from blocked users
-				h.db.Where("sender_id IN (SELECT blockee_id FROM blocks WHERE blocker_id = ?) AND sub_id = ?", user.ID, user.ID).Delete(&models.ControlAppCmd{})
-				
-				// 2. Delete anonymous commands if user doesn't allow them
-				if !user.AnonCmd {
-					h.db.Where("sender_id = ? AND sub_id = ?", "00000000-0000-0000-0000-000000000001", user.ID).Delete(&models.ControlAppCmd{})
-				}
-
-				// 3. Get next command
-				var assignment models.ControlAppCmd
-				err = h.db.Preload("Sender").Preload("Command").
-					Where("sub_id = ?", user.ID).
-					Order("created_at ASC").
-					First(&assignment).Error
-
-				if err == nil {
-					// Format: [SenderId],[Content] or [SenderId],[Content],[SenderName]
-					senderName := assignment.Sender.ScreenName
-					if senderName == "" {
-						result = fmt.Sprintf("[%s],[%s]", assignment.SenderID.String(), assignment.Command.Content)
+			// Authenticate user using legacy database
+			loginResult, err := h.legacyService.USP_Login(usernm, decryptedPwd)
+			if err != nil {
+				result = err.Error()
+			} else {
+				// Handle different command types
+				switch cmd {
+				case "Outstanding":
+					// Get outstanding command count and sender info (USP_GetOutstanding)
+					outstanding, err := h.legacyService.USP_GetOutstanding(loginResult.ID)
+					if err != nil {
+						result = err.Error()
 					} else {
-						result = fmt.Sprintf("[%s],[%s],[%s]", assignment.SenderID.String(), assignment.Command.Content, senderName)
+						// Format exactly like USP_GetOutstanding: [count],[whonext],[verified],[thumbs]
+						result = fmt.Sprintf("[%d],[%s],[%s],[%s]", outstanding.Count, outstanding.WhoNext, outstanding.Verified, outstanding.Thumbs)
 					}
-					// Mark command as completed (exec USP_CmdComplete)
-					_ = h.cmdService.CompleteCommand(user.ID)
-				}
 
-			default:
-				// Handle other command types (Accept, Reject, Thumbs, etc.)
-				if len(cmd) > 6 {
-					switch cmd[:6] {
-					case "Accept":
-						// USP_AcceptInvite
-						inviteFrom := cmd[6:]
-						// TODO: Implement invite acceptance logic
-						result = "Invite accepted: " + inviteFrom
-					case "Reject":
-						// USP_DeleteInvite
-						inviteFrom := cmd[6:]
-						// TODO: Implement invite rejection logic
-						result = "Invite rejected: " + inviteFrom
-					case "Thumbs":
-						// USP_thumbsup
-						thumbsValue := cmd[6:]
-						// TODO: Implement thumbs up logic
-						result = "Thumbs up: " + thumbsValue
-					default:
+				case "Content":
+					// Get next command content (USP_GetAppContent)
+					content, err := h.legacyService.USP_GetAppContent(loginResult.ID)
+					if err != nil {
+						result = err.Error()
+					} else if content != nil {
+						// Format: [SenderId],[Content],[SenderName]
+						result = fmt.Sprintf("[%s],[%s],[%s]", content.SenderID, content.Content, content.SenderName)
+						// Mark command as completed (USP_CmdComplete)
+						_ = h.legacyService.USP_CmdComplete(loginResult.ID)
+					}
+
+				case "Delete":
+					// Delete outstanding commands (USP_DeleteOutstanding)
+					err := h.legacyService.USP_DeleteOutstanding(loginResult.ID)
+					if err != nil {
+						result = err.Error()
+					}
+
+				case "Invite":
+					// Get invites (USP_GetInvites2)
+					invites, err := h.legacyService.USP_GetInvites2(loginResult.ID)
+					if err != nil {
+						result = err.Error()
+					} else {
+						result = invites
+					}
+
+				case "Relations":
+					// Get relationships (USP_GetRels)
+					relations, err := h.legacyService.USP_GetRels(loginResult.ID)
+					if err != nil {
+						result = err.Error()
+					} else {
+						result = relations
+					}
+
+				default:
+					// Handle other command types (Accept, Reject, Thumbs, etc.)
+					if len(cmd) > 6 {
+						switch cmd[:6] {
+						case "Accept":
+							// USP_AcceptInvite
+							inviteFrom := cmd[6:]
+							err := h.legacyService.USP_AcceptInvite(loginResult.ID, inviteFrom)
+							if err != nil {
+								result = err.Error()
+							} else {
+								result = "Invite accepted: " + inviteFrom
+							}
+						case "Reject":
+							// USP_DeleteInvite
+							inviteFrom := cmd[6:]
+							err := h.legacyService.USP_DeleteInvite(loginResult.ID, inviteFrom)
+							if err != nil {
+								result = err.Error()
+							} else {
+								result = "Invite rejected: " + inviteFrom
+							}
+						case "Thumbs":
+							// USP_thumbsup
+							thumbsValue := cmd[6:]
+							// Parse sender ID from thumbs value
+							var senderID int
+							_, err := fmt.Sscanf(thumbsValue, "%d", &senderID)
+							if err != nil {
+								result = "Invalid thumbs value"
+							} else {
+								err := h.legacyService.USP_thumbsup(loginResult.ID, senderID)
+								if err != nil {
+									result = err.Error()
+								} else {
+									result = "Thumbs up given"
+								}
+							}
+						default:
+							result = "Unknown command: " + cmd
+						}
+					} else {
 						result = "Unknown command: " + cmd
 					}
-				} else {
-					result = "Unknown command: " + cmd
 				}
 			}
 		}
+	} else {
+		result = "Wrong version."
 	}
 
 	// Return HTML response matching original ASP.NET page structure
@@ -213,33 +196,23 @@ func (h *LegacyHandlers) GetContent(c *gin.Context) {
 
 	// Validate version first (legacy behavior)
 	if vrs == "012" {
-		// Authenticate user (decrypt password first)
-		user, err := h.userService.AuthenticateLegacyUser(usernm, pwd)
-		if err == nil && user != nil {
-			// Implement exact USP_GetAppContent logic
-			// 1. Delete commands from blocked users
-			h.db.Where("sender_id IN (SELECT blockee_id FROM blocks WHERE blocker_id = ?) AND sub_id = ?", user.ID, user.ID).Delete(&models.ControlAppCmd{})
-			
-			// 2. Delete anonymous commands if user doesn't allow them
-			if !user.AnonCmd {
-				h.db.Where("sender_id = ? AND sub_id = ?", "00000000-0000-0000-0000-000000000001", user.ID).Delete(&models.ControlAppCmd{})
-			}
+		// Decrypt password using legacy crypto
+		decryptedPwd, err := h.authService.LegacyCrypto.Decrypt(pwd)
+		if err == nil {
+			// Authenticate user using legacy database
+			loginResult, err := h.legacyService.USP_Login(usernm, decryptedPwd)
+			if err == nil && loginResult != nil {
+				// Get app content using legacy stored procedure
+				content, err := h.legacyService.USP_GetAppContent(loginResult.ID)
+				if err == nil && content != nil {
+					// Format response exactly like USP_GetAppContent stored procedure
+					senderID = content.SenderID
+					result = content.Content
+					verified = content.SenderName
 
-			// 3. Get next command with sender info (TOP 1 ORDER BY SendDate)
-			var assignment models.ControlAppCmd
-			err = h.db.Preload("Command").Preload("Sender").
-				Where("sub_id = ?", user.ID).
-				Order("created_at ASC").
-				First(&assignment).Error
-
-			if err == nil {
-				// Format response exactly like USP_GetAppContent stored procedure
-				senderID = assignment.SenderID.String()
-				result = assignment.Command.Content // Use Content field, not Data
-				verified = assignment.Sender.ScreenName // SenderName from stored procedure
-				
-				// Mark command as completed (exec USP_CmdComplete)
-				_ = h.cmdService.CompleteCommand(user.ID)
+					// Mark command as completed (USP_CmdComplete)
+					_ = h.legacyService.USP_CmdComplete(loginResult.ID)
+				}
 			}
 		}
 	}
@@ -282,67 +255,19 @@ func (h *LegacyHandlers) GetCount(c *gin.Context) {
 
 	// Validate version first (legacy behavior)
 	if vrs == "012" {
-		// Authenticate user (decrypt password first)
-		user, err := h.userService.AuthenticateLegacyUser(usernm, pwd)
-		if err == nil && user != nil {
-			// Implement exact USP_GetOutstanding logic
-			// 1. Delete commands from blocked users
-			h.db.Where("sender_id IN (SELECT blockee_id FROM blocks WHERE blocker_id = ?) AND sub_id = ?", user.ID, user.ID).Delete(&models.ControlAppCmd{})
-			
-			// 2. Delete anonymous commands if user doesn't allow them
-			if !user.AnonCmd {
-				h.db.Where("sender_id = ? AND sub_id = ?", "00000000-0000-0000-0000-000000000001", user.ID).Delete(&models.ControlAppCmd{})
-			}
-
-			// 3. Update login date
-			user.LoginDate = time.Now()
-			h.db.Save(&user)
-
-			// 4. Get command count
-			var count int64
-			err = h.db.Model(&models.ControlAppCmd{}).Where("sub_id = ?", user.ID).Count(&count).Error
-			if err == nil {
-				result = strconv.FormatInt(count, 10)
-			}
-
-			// 5. Get "whonext" info - who is the next sender
-			var assignment models.ControlAppCmd
-			err = h.db.Preload("Sender").
-				Where("sub_id = ?", user.ID).
-				Order("created_at ASC").
-				First(&assignment).Error
-
-			if err == nil {
-				// Check if it's a group command
-				if assignment.GroupRefID != nil {
-					var group models.Group
-					err := h.db.First(&group, "id = ?", assignment.GroupRefID).Error
-					if err == nil {
-						next = "Group: " + group.Name
-					} else {
-						next = "Group"
-					}
-				} else if assignment.SenderID.String() == "00000000-0000-0000-0000-000000000001" {
-					next = "Anon"
-				} else {
-					// Check if sender is in a relationship with the user
-					var relationship models.Relationship
-					err = h.db.Where("dom_id = ? AND sub_id = ?", assignment.SenderID, user.ID).First(&relationship).Error
-					if err == nil {
-						next = assignment.Sender.ScreenName
-					} else {
-						next = "User"
-					}
+		// Decrypt password using legacy crypto
+		decryptedPwd, err := h.authService.LegacyCrypto.Decrypt(pwd)
+		if err == nil {
+			// Authenticate user using legacy database
+			loginResult, err := h.legacyService.USP_Login(usernm, decryptedPwd)
+			if err == nil && loginResult != nil {
+				// Get outstanding command info using legacy stored procedure
+				outstanding, err := h.legacyService.USP_GetOutstanding(loginResult.ID)
+				if err == nil {
+					result = fmt.Sprintf("%d", outstanding.Count)
+					next = outstanding.WhoNext
+					vari = outstanding.Verified
 				}
-			} else {
-				next = "User" // Default if no commands
-			}
-
-			// 6. Set verified status
-			if user.Verified {
-				vari = "1"
-			} else {
-				vari = "0"
 			}
 		}
 	}
