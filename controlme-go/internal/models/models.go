@@ -29,7 +29,7 @@ type Command struct {
 	ID        uuid.UUID `gorm:"type:uuid;primary_key;default:gen_random_uuid()" json:"id"`
 	Type      string    `gorm:"size:50;not null" json:"type"`
 	Content   string    `gorm:"type:text" json:"content"`
-	Data      string    `gorm:"type:jsonb" json:"data"`
+	Data      string    `gorm:"type:text" json:"data"`
 	Status    string    `gorm:"size:20;default:'pending'" json:"status"`
 	CreatedAt time.Time `json:"created_at"`
 	UpdatedAt time.Time `json:"updated_at"`
