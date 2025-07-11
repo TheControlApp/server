@@ -27,7 +27,7 @@ func main() {
 	// Create services
 	cmdService := services.NewCommandService(db)
 
-	// Find testdom and testsub users  
+	// Find testdom and testsub users
 	var users []struct {
 		ID         uuid.UUID `gorm:"column:id"`
 		LoginName  string    `gorm:"column:login_name"`
@@ -43,9 +43,9 @@ func main() {
 	fmt.Println("=== Current Users ===")
 	var domID, subID uuid.UUID
 	for _, user := range users {
-		fmt.Printf("ID: %s, Login: %s, Screen: %s, Role: %s\n", 
+		fmt.Printf("ID: %s, Login: %s, Screen: %s, Role: %s\n",
 			user.ID, user.LoginName, user.ScreenName, user.Role)
-		
+
 		if user.LoginName == "testdom" {
 			domID = user.ID
 		}
@@ -90,7 +90,7 @@ func main() {
 			continue
 		}
 
-		fmt.Printf("✓ Created command: %s -> %s (Assignment ID: %s)\n", 
+		fmt.Printf("✓ Created command: %s -> %s (Assignment ID: %s)\n",
 			cmd.Content, assignment.ID, command.ID)
 	}
 

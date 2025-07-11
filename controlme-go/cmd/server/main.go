@@ -21,7 +21,7 @@ func main() {
 	// Initialize logger
 	logrus.SetFormatter(&logrus.JSONFormatter{})
 	logrus.SetLevel(logrus.InfoLevel)
-	
+
 	// Load configuration
 	cfg, err := config.Load()
 	if err != nil {
@@ -45,7 +45,7 @@ func main() {
 
 	// Initialize Gin router
 	router := gin.New()
-	
+
 	// Setup middleware
 	router.Use(gin.Logger())
 	router.Use(gin.Recovery())

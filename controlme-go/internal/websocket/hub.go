@@ -4,8 +4,8 @@ import (
 	"encoding/json"
 	"time"
 
-	"github.com/gorilla/websocket"
 	"github.com/google/uuid"
+	"github.com/gorilla/websocket"
 	"github.com/sirupsen/logrus"
 )
 
@@ -72,16 +72,16 @@ func (h *Hub) Run() {
 		select {
 		case client := <-h.register:
 			h.clients[client] = true
-			
+
 			// Add to user connections
 			if _, exists := h.userConnections[client.userID]; !exists {
 				h.userConnections[client.userID] = []*Client{}
 			}
 			h.userConnections[client.userID] = append(h.userConnections[client.userID], client)
-			
+
 			logrus.WithFields(logrus.Fields{
-				"user_id":     client.userID,
-				"client_type": client.clientType,
+				"user_id":       client.userID,
+				"client_type":   client.clientType,
 				"total_clients": len(h.clients),
 			}).Info("Client connected")
 
@@ -89,7 +89,7 @@ func (h *Hub) Run() {
 			if _, ok := h.clients[client]; ok {
 				delete(h.clients, client)
 				close(client.send)
-				
+
 				// Remove from user connections
 				if connections, exists := h.userConnections[client.userID]; exists {
 					for i, conn := range connections {
@@ -103,10 +103,10 @@ func (h *Hub) Run() {
 						delete(h.userConnections, client.userID)
 					}
 				}
-				
+
 				logrus.WithFields(logrus.Fields{
-					"user_id":     client.userID,
-					"client_type": client.clientType,
+					"user_id":       client.userID,
+					"client_type":   client.clientType,
 					"total_clients": len(h.clients),
 				}).Info("Client disconnected")
 			}

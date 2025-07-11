@@ -4,13 +4,14 @@ import (
 	"crypto/aes"
 	"crypto/cipher"
 	"encoding/base64"
+	"errors"
 	"fmt"
 	"strings"
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
-	"golang.org/x/crypto/bcrypt"
 	"github.com/google/uuid"
+	"golang.org/x/crypto/bcrypt"
 )
 
 // LegacyCrypto handles encryption/decryption compatible with the C# CryptoHelper
@@ -31,7 +32,7 @@ func NewLegacyCrypto(key string) *LegacyCrypto {
 		// Trim to 32 bytes
 		keyBytes = keyBytes[:32]
 	}
-	
+
 	return &LegacyCrypto{
 		key: keyBytes,
 	}
@@ -72,7 +73,7 @@ func (lc *LegacyCrypto) Decrypt(encryptedText string) (string, error) {
 
 	// Remove padding
 	plaintext := removePKCS7Padding(ciphertext)
-	
+
 	return string(plaintext), nil
 }
 
@@ -95,7 +96,7 @@ func (lc *LegacyCrypto) Encrypt(plaintext string) (string, error) {
 	iv := make([]byte, aes.BlockSize)
 	// For compatibility, we might need to use a fixed IV or implement proper random IV generation
 	// This is a simplified version - in production, use crypto/rand
-	
+
 	// Create cipher mode
 	mode := cipher.NewCBCEncrypter(block, iv)
 
@@ -125,12 +126,12 @@ func removePKCS7Padding(data []byte) []byte {
 	if length == 0 {
 		return data
 	}
-	
+
 	unpadding := int(data[length-1])
 	if unpadding > length {
 		return data
 	}
-	
+
 	return data[:(length - unpadding)]
 }
 
@@ -228,11 +229,34 @@ type AuthService struct {
 	PasswordManager *PasswordManager
 }
 
+var jwtSecret string
+
 // NewAuthService creates a new authentication service
-func NewAuthService(legacyKey, jwtSecret string, jwtExpiration time.Duration) *AuthService {
+func NewAuthService(legacyKey, secret string, jwtExpiration time.Duration) *AuthService {
+	jwtSecret = secret
 	return &AuthService{
 		LegacyCrypto:    NewLegacyCrypto(legacyKey),
-		JWTManager:      NewJWTManager(jwtSecret, jwtExpiration),
+		JWTManager:      NewJWTManager(secret, jwtExpiration),
 		PasswordManager: NewPasswordManager(),
 	}
+}
+
+type Claims struct {
+	UserID string `json:"user_id"`
+	jwt.RegisteredClaims
+}
+
+// ParseJWT parses a JWT token and returns claims
+func ParseJWT(tokenStr string) (*Claims, error) {
+	token, err := jwt.ParseWithClaims(tokenStr, &Claims{}, func(token *jwt.Token) (interface{}, error) {
+		return []byte(jwtSecret), nil
+	})
+	if err != nil {
+		return nil, err
+	}
+	claims, ok := token.Claims.(*Claims)
+	if !ok || !token.Valid {
+		return nil, errors.New("invalid token claims")
+	}
+	return claims, nil
 }

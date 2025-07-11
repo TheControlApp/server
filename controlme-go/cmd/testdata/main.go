@@ -6,10 +6,10 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/thecontrolapp/controlme-go/internal/auth"
 	"github.com/thecontrolapp/controlme-go/internal/config"
 	"github.com/thecontrolapp/controlme-go/internal/database"
 	"github.com/thecontrolapp/controlme-go/internal/models"
-	"github.com/thecontrolapp/controlme-go/internal/auth"
 	"golang.org/x/crypto/bcrypt"
 )
 
@@ -97,7 +97,7 @@ func main() {
 		log.Printf("Encryption failed: %v", err)
 	} else {
 		fmt.Printf("Encrypted: %s\n", encrypted)
-		
+
 		decrypted, err := authService.LegacyCrypto.Decrypt(encrypted)
 		if err != nil {
 			log.Printf("Decryption failed: %v", err)

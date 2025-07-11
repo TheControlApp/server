@@ -37,13 +37,13 @@ type Command struct {
 
 // ControlAppCmd represents the command assignment table
 type ControlAppCmd struct {
-	ID         uuid.UUID `gorm:"type:uuid;primary_key;default:gen_random_uuid()" json:"id"`
-	SenderID   uuid.UUID `gorm:"type:uuid;not null" json:"sender_id"`
-	SubID      uuid.UUID `gorm:"type:uuid;not null" json:"sub_id"`
-	CommandID  uuid.UUID `gorm:"type:uuid;not null" json:"command_id"`
+	ID         uuid.UUID  `gorm:"type:uuid;primary_key;default:gen_random_uuid()" json:"id"`
+	SenderID   uuid.UUID  `gorm:"type:uuid;not null" json:"sender_id"`
+	SubID      uuid.UUID  `gorm:"type:uuid;not null" json:"sub_id"`
+	CommandID  uuid.UUID  `gorm:"type:uuid;not null" json:"command_id"`
 	GroupRefID *uuid.UUID `gorm:"type:uuid" json:"group_ref_id"`
-	CreatedAt  time.Time `json:"created_at"`
-	UpdatedAt  time.Time `json:"updated_at"`
+	CreatedAt  time.Time  `json:"created_at"`
+	UpdatedAt  time.Time  `json:"updated_at"`
 
 	// Relationships
 	Sender  User    `gorm:"foreignKey:SenderID" json:"sender"`
@@ -53,11 +53,11 @@ type ControlAppCmd struct {
 
 // ChatLog represents chat messages
 type ChatLog struct {
-	ID        uuid.UUID `gorm:"type:uuid;primary_key;default:gen_random_uuid()" json:"id"`
-	SenderID  uuid.UUID `gorm:"type:uuid;not null" json:"sender_id"`
+	ID         uuid.UUID `gorm:"type:uuid;primary_key;default:gen_random_uuid()" json:"id"`
+	SenderID   uuid.UUID `gorm:"type:uuid;not null" json:"sender_id"`
 	ReceiverID uuid.UUID `gorm:"type:uuid;not null" json:"receiver_id"`
-	Message   string    `gorm:"type:text;not null" json:"message"`
-	CreatedAt time.Time `json:"created_at"`
+	Message    string    `gorm:"type:text;not null" json:"message"`
+	CreatedAt  time.Time `json:"created_at"`
 
 	// Relationships
 	Sender   User `gorm:"foreignKey:SenderID" json:"sender"`
@@ -134,13 +134,13 @@ type Report struct {
 
 // Invite represents user invitations
 type Invite struct {
-	ID        uuid.UUID `gorm:"type:uuid;primary_key;default:gen_random_uuid()" json:"id"`
-	SenderID  uuid.UUID `gorm:"type:uuid;not null" json:"sender_id"`
+	ID         uuid.UUID `gorm:"type:uuid;primary_key;default:gen_random_uuid()" json:"id"`
+	SenderID   uuid.UUID `gorm:"type:uuid;not null" json:"sender_id"`
 	ReceiverID uuid.UUID `gorm:"type:uuid;not null" json:"receiver_id"`
-	Type      string    `gorm:"size:50;not null" json:"type"`
-	Status    string    `gorm:"size:20;default:'pending'" json:"status"`
-	CreatedAt time.Time `json:"created_at"`
-	UpdatedAt time.Time `json:"updated_at"`
+	Type       string    `gorm:"size:50;not null" json:"type"`
+	Status     string    `gorm:"size:20;default:'pending'" json:"status"`
+	CreatedAt  time.Time `json:"created_at"`
+	UpdatedAt  time.Time `json:"updated_at"`
 
 	// Relationships
 	Sender   User `gorm:"foreignKey:SenderID" json:"sender"`

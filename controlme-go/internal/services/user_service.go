@@ -4,10 +4,10 @@ import (
 	"fmt"
 	"time"
 
-	"gorm.io/gorm"
 	"github.com/google/uuid"
 	"github.com/thecontrolapp/controlme-go/internal/auth"
 	"github.com/thecontrolapp/controlme-go/internal/models"
+	"gorm.io/gorm"
 )
 
 // UserService handles user-related operations
@@ -27,7 +27,7 @@ func NewUserService(db *gorm.DB, authService *auth.AuthService) *UserService {
 // AuthenticateUser authenticates a user with username and password
 func (us *UserService) AuthenticateUser(username, password string) (*models.User, error) {
 	var user models.User
-	
+
 	// Try to find user by login name or screen name
 	err := us.db.Where("login_name = ? OR screen_name = ?", username, username).First(&user).Error
 	if err != nil {
@@ -98,6 +98,20 @@ func (us *UserService) CreateUser(screenName, loginName, password, role string) 
 	return &user, nil
 }
 
+// CreateUserRequest is used for creating a new user via modern API
+type CreateUserRequest struct {
+	LoginName  string `json:"login_name" binding:"required"`
+	ScreenName string `json:"screen_name" binding:"required"`
+	Password   string `json:"password" binding:"required"`
+}
+
+// GetAllUsers returns all users
+func (us *UserService) GetAllUsers() ([]models.User, error) {
+	var users []models.User
+	err := us.db.Find(&users).Error
+	return users, err
+}
+
 // GetUserByID retrieves a user by ID
 func (us *UserService) GetUserByID(id uuid.UUID) (*models.User, error) {
 	var user models.User
@@ -120,6 +134,20 @@ func (us *UserService) GetUserByUsername(username string) (*models.User, error) 
 			return nil, fmt.Errorf("user not found")
 		}
 		return nil, fmt.Errorf("database error: %w", err)
+	}
+	return &user, nil
+}
+
+// CreateUser creates a new user with the modern API
+func (us *UserService) CreateUser(req CreateUserRequest) (*models.User, error) {
+	user := models.User{
+		LoginName:  req.LoginName,
+		ScreenName: req.ScreenName,
+		Password:   req.Password, // Use modern hash
+	}
+	err := us.db.Create(&user).Error
+	if err != nil {
+		return nil, err
 	}
 	return &user, nil
 }
@@ -179,12 +207,12 @@ func (cs *CommandService) AssignCommandToUser(senderID, subID, commandID uuid.UU
 // GetPendingCommandsForUser retrieves pending commands for a specific user
 func (cs *CommandService) GetPendingCommandsForUser(userID uuid.UUID) ([]models.ControlAppCmd, error) {
 	var assignments []models.ControlAppCmd
-	
+
 	err := cs.db.Preload("Command").Preload("Sender").
 		Where("sub_id = ? AND commands.status = ?", userID, "pending").
 		Joins("JOIN commands ON control_app_cmds.command_id = commands.id").
 		Find(&assignments).Error
-	
+
 	if err != nil {
 		return nil, fmt.Errorf("failed to get pending commands: %w", err)
 	}
@@ -195,12 +223,12 @@ func (cs *CommandService) GetPendingCommandsForUser(userID uuid.UUID) ([]models.
 // GetPendingCommandCount gets the count of pending commands for a user
 func (cs *CommandService) GetPendingCommandCount(userID uuid.UUID) (int64, error) {
 	var count int64
-	
+
 	err := cs.db.Model(&models.ControlAppCmd{}).
-		Where("sub_id = ? AND EXISTS (SELECT 1 FROM commands WHERE commands.id = control_app_cmds.command_id AND commands.status = ?)", 
+		Where("sub_id = ? AND EXISTS (SELECT 1 FROM commands WHERE commands.id = control_app_cmds.command_id AND commands.status = ?)",
 			userID, "pending").
 		Count(&count).Error
-	
+
 	if err != nil {
 		return 0, fmt.Errorf("failed to count pending commands: %w", err)
 	}
@@ -211,13 +239,13 @@ func (cs *CommandService) GetPendingCommandCount(userID uuid.UUID) (int64, error
 // GetNextCommand gets the next command for a user (simulates USP_GetAppContent)
 func (cs *CommandService) GetNextCommand(userID uuid.UUID) (*models.ControlAppCmd, error) {
 	var assignment models.ControlAppCmd
-	
+
 	err := cs.db.Preload("Command").Preload("Sender").
-		Where("sub_id = ? AND EXISTS (SELECT 1 FROM commands WHERE commands.id = control_app_cmds.command_id AND commands.status = ?)", 
+		Where("sub_id = ? AND EXISTS (SELECT 1 FROM commands WHERE commands.id = control_app_cmds.command_id AND commands.status = ?)",
 			userID, "pending").
 		Order("created_at ASC").
 		First(&assignment).Error
-	
+
 	if err != nil {
 		if err == gorm.ErrRecordNotFound {
 			return nil, nil // No pending commands
@@ -232,12 +260,12 @@ func (cs *CommandService) GetNextCommand(userID uuid.UUID) (*models.ControlAppCm
 func (cs *CommandService) CompleteCommand(userID uuid.UUID) error {
 	// Get the oldest pending command for this user
 	var assignment models.ControlAppCmd
-	
-	err := cs.db.Where("sub_id = ? AND EXISTS (SELECT 1 FROM commands WHERE commands.id = control_app_cmds.command_id AND commands.status = ?)", 
+
+	err := cs.db.Where("sub_id = ? AND EXISTS (SELECT 1 FROM commands WHERE commands.id = control_app_cmds.command_id AND commands.status = ?)",
 		userID, "pending").
 		Order("created_at ASC").
 		First(&assignment).Error
-	
+
 	if err != nil {
 		if err == gorm.ErrRecordNotFound {
 			return nil // No pending commands to complete
@@ -249,7 +277,7 @@ func (cs *CommandService) CompleteCommand(userID uuid.UUID) error {
 	err = cs.db.Model(&models.Command{}).
 		Where("id = ?", assignment.CommandID).
 		Update("status", "completed").Error
-	
+
 	if err != nil {
 		return fmt.Errorf("failed to mark command as completed: %w", err)
 	}
@@ -271,11 +299,11 @@ func (cs *CommandService) DeleteOutstandingCommands(userID uuid.UUID) error {
 // GetUserRelationships gets the relationships for a user (dom/sub relationships)
 func (cs *CommandService) GetUserRelationships(userID uuid.UUID) ([]models.Relationship, error) {
 	var relationships []models.Relationship
-	
+
 	err := cs.db.Preload("Dom").Preload("Sub").
 		Where("dom_id = ? OR sub_id = ?", userID, userID).
 		Find(&relationships).Error
-	
+
 	if err != nil {
 		return nil, fmt.Errorf("failed to get relationships: %w", err)
 	}
@@ -287,10 +315,10 @@ func (cs *CommandService) GetUserRelationships(userID uuid.UUID) ([]models.Relat
 func (cs *CommandService) MarkCommandCompleted(commandID uuid.UUID, userID uuid.UUID) error {
 	// Verify the command belongs to this user and update status
 	err := cs.db.Model(&models.Command{}).
-		Where("id = ? AND EXISTS (SELECT 1 FROM control_app_cmds WHERE control_app_cmds.command_id = ? AND control_app_cmds.sub_id = ?)", 
+		Where("id = ? AND EXISTS (SELECT 1 FROM control_app_cmds WHERE control_app_cmds.command_id = ? AND control_app_cmds.sub_id = ?)",
 			commandID, commandID, userID).
 		Update("status", "completed").Error
-	
+
 	if err != nil {
 		return fmt.Errorf("failed to mark command as completed: %w", err)
 	}
@@ -306,7 +334,7 @@ func (cs *CommandService) DeletePendingCommandsForUser(userID uuid.UUID) error {
 		Select("command_id").
 		Where("sub_id = ?", userID).
 		Pluck("command_id", &commandIDs).Error
-	
+
 	if err != nil {
 		return fmt.Errorf("failed to get command IDs: %w", err)
 	}

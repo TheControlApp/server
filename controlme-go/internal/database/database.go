@@ -3,11 +3,11 @@ package database
 import (
 	"fmt"
 
+	"github.com/thecontrolapp/controlme-go/internal/config"
+	"github.com/thecontrolapp/controlme-go/internal/models"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 	"gorm.io/gorm/logger"
-	"github.com/thecontrolapp/controlme-go/internal/config"
-	"github.com/thecontrolapp/controlme-go/internal/models"
 )
 
 // Initialize sets up the database connection and runs migrations

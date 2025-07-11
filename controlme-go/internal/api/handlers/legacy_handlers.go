@@ -8,10 +8,10 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
-	"gorm.io/gorm"
 	"github.com/thecontrolapp/controlme-go/internal/auth"
 	"github.com/thecontrolapp/controlme-go/internal/config"
 	"github.com/thecontrolapp/controlme-go/internal/services"
+	"gorm.io/gorm"
 )
 
 // LegacyHandlers contains handlers for legacy ASP.NET endpoints
@@ -42,10 +42,10 @@ func (h *LegacyHandlers) AppCommand(c *gin.Context) {
 	pwd := c.Query("pwd")
 	vrs := c.Query("vrs")
 	cmd := c.Query("cmd")
-	
+
 	// Initialize result
 	result := ""
-	
+
 	// Validate required parameters
 	if usernm == "" || pwd == "" {
 		result = "Missing required parameters"
@@ -72,7 +72,7 @@ func (h *LegacyHandlers) AppCommand(c *gin.Context) {
 					thumbs := "0"     // User.ThumbsUp field
 					result = fmt.Sprintf("[%d],[%s],[%s],[%s]", count, whonext, verified, thumbs)
 				}
-				
+
 			case "Content":
 				// Get next command content (like USP_GetAppContent)
 				assignment, err := h.cmdService.GetNextCommand(user.ID)
@@ -91,14 +91,14 @@ func (h *LegacyHandlers) AppCommand(c *gin.Context) {
 					// Mark command as completed
 					_ = h.cmdService.CompleteCommand(user.ID)
 				}
-				
+
 			default:
 				// Legacy behavior for sending commands (original AppCommand logic)
 				from := c.Query("From")
 				to := c.Query("To")
 				data := c.Query("Data")
 				password := c.Query("Password")
-				
+
 				if from == "" || to == "" || data == "" || password == "" {
 					result = "Missing command parameters"
 				} else {
@@ -168,12 +168,12 @@ func (h *LegacyHandlers) GetContent(c *gin.Context) {
 	usernm := c.Query("usernm")
 	pwd := c.Query("pwd")
 	vrs := c.Query("vrs")
-	
+
 	// Initialize response variables
 	senderID := ""
 	result := ""
 	verified := ""
-	
+
 	// Validate required parameters and version
 	if usernm == "" || pwd == "" {
 		result = "Missing required parameters"
@@ -196,7 +196,7 @@ func (h *LegacyHandlers) GetContent(c *gin.Context) {
 				// Legacy stores user IDs as integers, but we use UUIDs - need to convert or use a mapping
 				senderID = assignment.SenderID.String()
 				result = assignment.Command.Data
-				
+
 				// Mark command as completed (legacy behavior: exec USP_CmdComplete)
 				_ = h.cmdService.CompleteCommand(user.ID)
 			}
@@ -233,7 +233,7 @@ func (h *LegacyHandlers) GetCount(c *gin.Context) {
 	user := c.Query("usernm")
 	password := c.Query("pwd")
 	version := c.Query("vrs")
-	
+
 	if user == "" || password == "" {
 		c.String(http.StatusBadRequest, "Missing required parameters")
 		return
@@ -270,7 +270,7 @@ func (h *LegacyHandlers) ProcessComplete(c *gin.Context) {
 	user := c.PostForm("User")
 	password := c.PostForm("Password")
 	commandID := c.PostForm("CommandID")
-	
+
 	if user == "" || password == "" || commandID == "" {
 		c.String(http.StatusBadRequest, "Missing required parameters")
 		return
@@ -307,7 +307,7 @@ func (h *LegacyHandlers) DeleteOut(c *gin.Context) {
 	// Get form parameters
 	user := c.PostForm("User")
 	password := c.PostForm("Password")
-	
+
 	if user == "" || password == "" {
 		c.String(http.StatusBadRequest, "Missing required parameters")
 		return
@@ -338,7 +338,7 @@ func (h *LegacyHandlers) GetOptions(c *gin.Context) {
 	user := c.Query("usernm")
 	password := c.Query("pwd")
 	version := c.Query("vrs")
-	
+
 	if user == "" || password == "" {
 		c.String(http.StatusBadRequest, "Missing required parameters")
 		return

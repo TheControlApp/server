@@ -2,14 +2,14 @@ package routes
 
 import (
 	"time"
-	
+
 	"github.com/gin-gonic/gin"
-	"gorm.io/gorm"
-	"github.com/thecontrolapp/controlme-go/internal/config"
-	"github.com/thecontrolapp/controlme-go/internal/websocket"
 	"github.com/thecontrolapp/controlme-go/internal/api/handlers"
 	"github.com/thecontrolapp/controlme-go/internal/auth"
+	"github.com/thecontrolapp/controlme-go/internal/config"
 	"github.com/thecontrolapp/controlme-go/internal/services"
+	"github.com/thecontrolapp/controlme-go/internal/websocket"
+	"gorm.io/gorm"
 )
 
 // SetupRoutes configures all the routes for the application
@@ -19,14 +19,14 @@ func SetupRoutes(router *gin.Engine, db *gorm.DB, hub *websocket.Hub, cfg *confi
 	authService := auth.NewAuthService(cfg.Legacy.CryptoKey, cfg.Auth.JWTSecret, jwtExpiration)
 	userService := services.NewUserService(db, authService)
 	cmdService := services.NewCommandService(db)
-	
+
 	// Initialize handlers
 	legacyHandlers := handlers.NewLegacyHandlers(db, userService, cmdService, authService, cfg)
 
 	// Health check endpoint
 	router.GET("/health", func(c *gin.Context) {
 		c.JSON(200, gin.H{
-			"status": "ok",
+			"status":  "ok",
 			"service": "controlme-go",
 		})
 	})
@@ -55,13 +55,21 @@ func SetupRoutes(router *gin.Engine, db *gorm.DB, hub *websocket.Hub, cfg *confi
 				c.JSON(200, gin.H{"message": "Complete command - TODO"})
 			})
 		}
+
+		// User routes
+		users := v1.Group("/users")
+		{
+			users.GET("", handlers.GetUsers)
+			users.GET("/:id", handlers.GetUserByID)
+			users.POST("", handlers.CreateUser)
+		}
 	}
 
 	// WebSocket routes
 	router.GET("/ws/client", func(c *gin.Context) {
 		c.JSON(200, gin.H{"message": "WebSocket client endpoint - TODO"})
 	})
-	
+
 	router.GET("/ws/web", func(c *gin.Context) {
 		c.JSON(200, gin.H{"message": "WebSocket web endpoint - TODO"})
 	})
@@ -79,37 +87,37 @@ func setupLegacyRoutes(router *gin.Engine, handlers *handlers.LegacyHandlers) {
 	router.POST("/ProcessComplete.aspx", handlers.ProcessComplete)
 	router.POST("/DeleteOut.aspx", handlers.DeleteOut)
 	router.GET("/GetOptions.aspx", handlers.GetOptions)
-	
+
 	// Legacy web interface endpoints (placeholder for now)
 	router.GET("/Default.aspx", func(c *gin.Context) {
 		c.String(200, "Legacy Default page - TODO")
 	})
-	
+
 	router.GET("/Messages.aspx", func(c *gin.Context) {
 		c.String(200, "Legacy Messages page - TODO")
 	})
-	
+
 	router.POST("/Upload.aspx", func(c *gin.Context) {
 		c.String(200, "Legacy Upload endpoint - TODO")
 	})
-	
+
 	// Legacy auth pages (placeholder for now)
 	router.GET("/Pages/Login.aspx", func(c *gin.Context) {
 		c.String(200, "Legacy Login page - TODO")
 	})
-	
+
 	router.POST("/Pages/Login.aspx", func(c *gin.Context) {
 		c.String(200, "Legacy Login processing - TODO")
 	})
-	
+
 	router.GET("/Pages/Register.aspx", func(c *gin.Context) {
 		c.String(200, "Legacy Register page - TODO")
 	})
-	
+
 	router.POST("/Pages/Register.aspx", func(c *gin.Context) {
 		c.String(200, "Legacy Register processing - TODO")
 	})
-	
+
 	router.GET("/Pages/ControlPC.aspx", func(c *gin.Context) {
 		c.String(200, "Legacy ControlPC page - TODO")
 	})

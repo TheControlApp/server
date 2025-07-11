@@ -5,12 +5,12 @@ import (
 )
 
 type Config struct {
-	Environment string     `mapstructure:"environment"`
-	Server      Server     `mapstructure:"server"`
-	Database    Database   `mapstructure:"database"`
-	Redis       Redis      `mapstructure:"redis"`
-	Auth        Auth       `mapstructure:"auth"`
-	Legacy      Legacy     `mapstructure:"legacy"`
+	Environment string   `mapstructure:"environment"`
+	Server      Server   `mapstructure:"server"`
+	Database    Database `mapstructure:"database"`
+	Redis       Redis    `mapstructure:"redis"`
+	Auth        Auth     `mapstructure:"auth"`
+	Legacy      Legacy   `mapstructure:"legacy"`
 }
 
 type Server struct {
