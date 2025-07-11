@@ -89,27 +89,27 @@ Rewriting the ControlMe consensual remote control platform from ASP.NET/C# to Go
 ## Phase 1: Project Setup & Database Migration
 
 ### 1.1 Initialize Go Project
-- [ ] Create Go module structure
-- [ ] Set up development environment
-- [ ] Configure project dependencies
+- [x] Create Go module structure
+- [x] Set up development environment
+- [x] Configure project dependencies
 - [ ] Set up CI/CD pipeline basics
 
 ### 1.2 Database Migration
-- [ ] Install PostgreSQL locally
-- [ ] Create database schema migration tool
-- [ ] Convert SQL Server tables to PostgreSQL:
-  - [ ] Users table
-  - [ ] ControlAppCmd table
-  - [ ] CommandList table
-  - [ ] ChatLog table
-  - [ ] Groups table
-  - [ ] Relationship table
-  - [ ] Block table
-  - [ ] Report table
-  - [ ] Invites table
+- [x] Install PostgreSQL locally (via Docker)
+- [x] Create database schema migration tool (GORM auto-migrate)
+- [x] Convert SQL Server tables to PostgreSQL:
+  - [x] Users table
+  - [x] ControlAppCmd table
+  - [x] CommandList table (renamed to Commands)
+  - [x] ChatLog table
+  - [x] Groups table
+  - [x] Relationship table
+  - [x] Block table
+  - [x] Report table
+  - [x] Invites table
 - [ ] Convert stored procedures to Go functions
-- [ ] Create database connection pool
-- [ ] Implement database models with GORM/sqlx
+- [x] Create database connection pool
+- [x] Implement database models with GORM/sqlx
 - [ ] Legacy data migration and validation
 - [ ] Backup and rollback procedures
 

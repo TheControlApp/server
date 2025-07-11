@@ -1,0 +1,29 @@
+environment: development
+
+server:
+  port: 8080
+  host: localhost
+
+database:
+  host: localhost
+  port: 5432
+  name: controlme
+  username: postgres
+  password: postgres
+  sslmode: disable
+
+redis:
+  host: localhost
+  port: 6379
+  password: ""
+  db: 0
+
+auth:
+  jwt_secret: "your-super-secret-jwt-key-change-this-in-production"
+  jwt_expiration: 86400  # 24 hours in seconds
+
+legacy:
+  crypto_key: "your-legacy-crypto-key-from-csharp-app"
+  upgrade_notifications: true
+  notification_frequency: 24  # hours
+  sunset_date: "2025-10-01"
