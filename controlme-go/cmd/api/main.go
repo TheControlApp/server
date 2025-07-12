@@ -1,14 +1,14 @@
 package main
 
 import (
+	"fmt"
 	"log"
 	"os"
 
-	"github.com/gin-gonic/gin"
 	"github.com/thecontrolapp/controlme-go/internal/api"
 	"github.com/thecontrolapp/controlme-go/internal/config"
 	"github.com/thecontrolapp/controlme-go/internal/database"
-	"github.com/thecontrolapp/controlme-go/internal/middleware"
+	"github.com/thecontrolapp/controlme-go/internal/websocket"
 )
 
 // @title ControlMe API
@@ -38,34 +38,25 @@ func main() {
 		log.Fatal("Failed to load config:", err)
 	}
 
+	log.Printf("🔧 Starting ControlMe API in %s mode", cfg.Environment)
+
 	// Initialize database
-	db, err := database.Init(cfg)
+	db, err := database.Initialize(cfg)
 	if err != nil {
 		log.Fatal("Failed to connect to database:", err)
 	}
 
-	// Set Gin mode
-	if cfg.Server.Mode == "release" {
-		gin.SetMode(gin.ReleaseMode)
-	}
+	// Initialize WebSocket hub
+	hub := websocket.NewHub()
+	go hub.Run()
 
-	// Create Gin router
-	router := gin.New()
-
-	// Add global middleware
-	router.Use(middleware.Logger())
-	router.Use(middleware.Recovery())
-	router.Use(middleware.CORS())
-	router.Use(middleware.Security())
-
-	// Initialize API
-	apiHandler := api.NewHandler(db, cfg)
-	apiHandler.SetupRoutes(router)
+	// Set up API router
+	router := api.SetupRouter(db, hub, cfg)
 
 	// Start server
 	port := os.Getenv("PORT")
 	if port == "" {
-		port = cfg.Server.Port
+		port = fmt.Sprintf("%d", cfg.Server.Port)
 	}
 
 	log.Printf("🚀 ControlMe API server starting on port %s", port)

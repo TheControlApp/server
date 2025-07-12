@@ -47,7 +47,7 @@ func (h *UserHandlers) CreateUser(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request"})
 		return
 	}
-	user, err := h.Service.CreateUser(req.ScreenName, req.LoginName, req.Password, "user")
+	user, err := h.Service.CreateUser(req)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create user"})
 		return
