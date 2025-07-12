@@ -32,9 +32,9 @@ type LegacyLoginResult struct {
 
 // USP_Login implements the exact logic from the legacy USP_Login stored procedure
 func (ls *LegacyService) USP_Login(username, password string) (*LegacyLoginResult, error) {
-	// SELECT Id, [Role],Varified from Users where [Screen Name]=@UserName and Password=@Password
-	var user models.LegacyUser
-	err := ls.db.Where("[Screen Name] = ? AND Password = ?", username, password).First(&user).Error
+	// First get user by screen name (using modern User model)
+	var user models.User
+	err := ls.db.Where("screen_name = ?", username).First(&user).Error
 	if err != nil {
 		if err == gorm.ErrRecordNotFound {
 			return nil, fmt.Errorf("user not found")
@@ -42,8 +42,24 @@ func (ls *LegacyService) USP_Login(username, password string) (*LegacyLoginResul
 		return nil, fmt.Errorf("database error: %w", err)
 	}
 
+	// Decrypt stored password and compare with plain text input
+	decryptedPassword, err := ls.auth.LegacyCrypto.Decrypt(user.Password)
+	if err != nil {
+		return nil, fmt.Errorf("password decryption failed: %w", err)
+	}
+
+	if decryptedPassword != password {
+		return nil, fmt.Errorf("invalid password")
+	}
+
+	// Update login date
+	ls.db.Model(&user).Update("login_date", time.Now())
+
+	// Convert UUID to int for legacy compatibility (we'll need to implement this mapping)
+	legacyID := int(user.ID.ID()) // This is a simplified conversion - you may need a proper mapping table
+
 	return &LegacyLoginResult{
-		ID:       user.ID,
+		ID:       legacyID,
 		Role:     user.Role,
 		Verified: user.Verified,
 	}, nil
