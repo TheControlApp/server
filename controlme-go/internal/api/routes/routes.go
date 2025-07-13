@@ -30,6 +30,7 @@ func SetupRoutes(router *gin.Engine, db *gorm.DB, hub *websocket.Hub, cfg *confi
 		c.JSON(200, gin.H{
 			"status":  "ok",
 			"service": "controlme-go",
+			"message": "Hot reload working!",
 		})
 	})
 

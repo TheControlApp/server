@@ -229,9 +229,10 @@ func (cs *CommandService) AcceptInvite(subID uuid.UUID, domName string) error {
 
 	// Create relationship
 	relationship := models.Relationship{
-		DomID:  domUser.ID,
-		SubID:  subID,
-		Status: "active",
+		UserID:    domUser.ID,
+		RelatedID: subID,
+		Type:      "control",
+		Status:    "active",
 	}
 
 	err = cs.db.Create(&relationship).Error
