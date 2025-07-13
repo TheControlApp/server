@@ -1,6 +1,8 @@
 package config
 
 import (
+	"os"
+	
 	"github.com/spf13/viper"
 )
 
@@ -47,7 +49,18 @@ type Legacy struct {
 }
 
 func Load() (*Config, error) {
-	viper.SetConfigName("config")
+	// Check for custom config file from environment
+	configFile := os.Getenv("CONFIG_FILE")
+	if configFile == "" {
+		configFile = "config"
+	} else {
+		// Remove .yaml extension if present
+		if len(configFile) > 5 && configFile[len(configFile)-5:] == ".yaml" {
+			configFile = configFile[:len(configFile)-5]
+		}
+	}
+	
+	viper.SetConfigName(configFile)
 	viper.SetConfigType("yaml")
 	viper.AddConfigPath("./configs")
 	viper.AddConfigPath(".")
@@ -71,6 +84,18 @@ func Load() (*Config, error) {
 
 	// Read environment variables
 	viper.AutomaticEnv()
+	
+	// Bind specific environment variables to config keys
+	viper.BindEnv("database.host", "DB_HOST")
+	viper.BindEnv("database.port", "DB_PORT")
+	viper.BindEnv("database.name", "DB_NAME")
+	viper.BindEnv("database.username", "DB_USER")
+	viper.BindEnv("database.password", "DB_PASSWORD")
+	viper.BindEnv("redis.host", "REDIS_HOST")
+	viper.BindEnv("redis.port", "REDIS_PORT")
+	viper.BindEnv("redis.password", "REDIS_PASSWORD")
+	viper.BindEnv("auth.jwt_secret", "JWT_SECRET")
+	viper.BindEnv("legacy.crypto_key", "LEGACY_CRYPTO_KEY")
 
 	if err := viper.ReadInConfig(); err != nil {
 		if _, ok := err.(viper.ConfigFileNotFoundError); !ok {

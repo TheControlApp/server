@@ -54,6 +54,7 @@ services:
       redis:
         condition: service_healthy
     environment:
+      - CONFIG_FILE=config.docker.yaml  # Use Docker-specific config
       - DB_HOST=postgres
       - DB_PORT=5432
       - DB_NAME=controlme
