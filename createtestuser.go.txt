@@ -1,0 +1,43 @@
+
+package main
+
+import (
+    "fmt"
+    "log"
+    "time"
+
+    "github.com/google/uuid"
+    "github.com/thecontrolapp/controlme-go/internal/config"
+    "github.com/thecontrolapp/controlme-go/internal/database"
+    "github.com/thecontrolapp/controlme-go/internal/models"
+)
+
+func main() {
+    cfg, err := config.Load()
+    if err != nil {
+        log.Fatalf("Failed to load config: %v", err)
+    }
+
+    db, err := database.Initialize(cfg)
+    if err != nil {
+        log.Fatalf("Failed to connect to database: %v", err)
+    }
+
+    user := models.User{
+        ID:         uuid.New(),
+        ScreenName: "IamMe",
+        LoginName:  "IamMe",
+        Password:   "", // No password
+        Role:       "user",
+        Verified:   true,
+        CreatedAt:  time.Now(),
+        UpdatedAt:  time.Now(),
+        LoginDate:  time.Now(),
+    }
+
+    if err := db.Create(&user).Error; err != nil {
+        log.Fatalf("Failed to create user: %v", err)
+    }
+
+    fmt.Printf("Created user: %s (ID: %s)", user.LoginName, user.ID)
+}
