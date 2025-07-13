@@ -40,29 +40,30 @@ services:
       retries: 5
 
   # Uncomment when ready to containerize the Go application
-  # controlme-server:
-  #   build:
-  #     context: .
-  #     dockerfile: docker/Dockerfile
-  #   container_name: controlme-server
-  #   ports:
-  #     - "8080:8080"
-  #   depends_on:
-  #     postgres:
-  #       condition: service_healthy
-  #     redis:
-  #       condition: service_healthy
-  #   environment:
-  #     - DB_HOST=postgres
-  #     - DB_PORT=5432
-  #     - DB_NAME=controlme
-  #     - DB_USER=postgres
-  #     - DB_PASSWORD=postgres
-  #     - REDIS_HOST=redis
-  #     - REDIS_PORT=6379
-  #   networks:
-  #     - controlme-network
-  #   restart: unless-stopped
+  controlme-server:
+    image: cosmtrek/air
+    container_name: controlme-server
+    working_dir: /app
+    volumes:
+      - ./:/app
+    ports:
+      - "8080:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      - DB_HOST=postgres
+      - DB_PORT=5432
+      - DB_NAME=controlme
+      - DB_USER=postgres
+      - DB_PASSWORD=postgres
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+    networks:
+      - controlme-network
+    restart: unless-stopped
 
 volumes:
   postgres_data:
