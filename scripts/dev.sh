@@ -7,17 +7,32 @@ set -e
 echo "🚀 Starting ControlMe Go development environment..."
 
 # Start Docker services
-echo "📊 Starting database services..."
-./scripts/docker.sh up
+echo "� Starting Docker services..."
+docker-compose up -d
 
 # Wait for services to be ready
-echo "⏳ Waiting for database to be ready..."
-sleep 3
+echo "⏳ Waiting for services to be ready..."
+sleep 5
 
 # Check if database is ready
-until docker-compose exec -T postgres pg_isready -U postgres -d controlme > /dev/null 2>&1; do
+echo "📊 Checking database connection..."
+until docker-compose exec -T postgres pg_isready -U controlme -d controlme > /dev/null 2>&1; do
     echo "Waiting for PostgreSQL..."
     sleep 2
+done
+
+# Build the server
+echo "🔨 Building server..."
+go build -o bin/server cmd/server/main.go
+
+# Start the server with auto-reload if air is available
+if command -v air &> /dev/null; then
+    echo "🔥 Starting server with hot reload..."
+    air
+else
+    echo "🔥 Starting server..."
+    ./bin/server
+fi
 done
 
 echo "✅ Database is ready!"

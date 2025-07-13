@@ -25,7 +25,7 @@ func TestLegacyHandlers_AppCommand_WrongVersion(t *testing.T) {
 
 	// Setup test database
 	db := setupTestDB(t)
-	
+
 	// Create services
 	authService := auth.NewAuthService("test-key", "test-secret", 0)
 	userService := services.NewUserService(db, authService)
@@ -56,7 +56,7 @@ func TestLegacyHandlers_AppCommand_MissingParams(t *testing.T) {
 
 	// Setup test database
 	db := setupTestDB(t)
-	
+
 	// Create services
 	authService := auth.NewAuthService("test-key", "test-secret", 0)
 	userService := services.NewUserService(db, authService)
@@ -88,7 +88,7 @@ func TestLegacyHandlers_GetContent_WrongVersion(t *testing.T) {
 
 	// Setup test database
 	db := setupTestDB(t)
-	
+
 	// Create services
 	authService := auth.NewAuthService("test-key", "test-secret", 0)
 	userService := services.NewUserService(db, authService)
@@ -121,7 +121,7 @@ func TestLegacyHandlers_GetCount_WrongVersion(t *testing.T) {
 
 	// Setup test database
 	db := setupTestDB(t)
-	
+
 	// Create services
 	authService := auth.NewAuthService("test-key", "test-secret", 0)
 	userService := services.NewUserService(db, authService)
@@ -154,7 +154,7 @@ func TestLegacyHandlers_ProcessComplete_MissingParams(t *testing.T) {
 
 	// Setup test database
 	db := setupTestDB(t)
-	
+
 	// Create services
 	authService := auth.NewAuthService("test-key", "test-secret", 0)
 	userService := services.NewUserService(db, authService)
@@ -185,7 +185,7 @@ func TestLegacyHandlers_DeleteOut_MissingParams(t *testing.T) {
 
 	// Setup test database
 	db := setupTestDB(t)
-	
+
 	// Create services
 	authService := auth.NewAuthService("test-key", "test-secret", 0)
 	userService := services.NewUserService(db, authService)
@@ -216,7 +216,7 @@ func TestLegacyHandlers_GetOptions_MissingParams(t *testing.T) {
 
 	// Setup test database
 	db := setupTestDB(t)
-	
+
 	// Create services
 	authService := auth.NewAuthService("test-key", "test-secret", 0)
 	userService := services.NewUserService(db, authService)

@@ -1,41 +1,4 @@
-﻿## Ignore Visual Studio temporary files, build results, and
-## user-specific files
-
-# Build results
-bin/
-obj/
-[Ll]og/
-*.log
-
-# User-specific files
-*.user
-*.userosscache
-*.suo
-*.sln.docstates
-
-# Auto-generated files
-Generated_Code/
-
-# VS Code settings
-.vscode/
-
-# Rider settings
-.idea/
-
-
-# Local history for some extensions
-.localhistory/
-
-# IIS Express
-.vs/
-*.iisexpress/
-
-# Logs
-*.log
-
-# OS junk
-*.DS_Store
-Thumbs.db
+﻿# ControlMe Go Backend - .gitignore
 
 # Binaries for programs and plugins
 *.exe
@@ -43,21 +6,23 @@ Thumbs.db
 *.dll
 *.so
 *.dylib
+bin/
+obj/
 
 # Test binary, built with `go test -c`
 *.test
 
-# Output of the go coverage tool, specifically when used with LiteIDE
+# Output of the go coverage tool
 *.out
 
 # Go workspace file
 go.work
 
-# Dependency directories (remove the comment below to include it)
-vendor/
-
 # Go build cache
 .cache/
+
+# Dependency directories
+vendor/
 
 # IDE files
 .vscode/
@@ -87,17 +52,18 @@ configs/config.yaml
 # Logs
 logs/
 *.log
+[Ll]og/
 
 # Runtime data
-pids
+pids/
 *.pid
 *.seed
 *.pid.lock
 
-# Coverage directory used by tools like istanbul
+# Coverage directory
 coverage/
 
-# Documentation
+# Documentation build
 docs/build/
 
 # Temporary files
@@ -115,3 +81,12 @@ build/
 
 # Docker volumes
 docker-data/
+
+# Auto-generated files
+Generated_Code/
+
+# Local history
+.localhistory/
+
+# Air hot-reload tool
+.air.toml
