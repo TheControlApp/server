@@ -224,7 +224,8 @@ func (pm *PasswordManager) VerifyPassword(password, hash string) error {
 
 // AuthService combines all authentication functionality
 type AuthService struct {
-	LegacyCrypto    *LegacyCrypto
+	LegacyCrypto    *LegacyCrypto    // Original AES crypto (if needed)
+	LegacyDESCrypto *LegacyDESCrypto // DES crypto matching C# client
 	JWTManager      *JWTManager
 	PasswordManager *PasswordManager
 }
@@ -236,6 +237,7 @@ func NewAuthService(legacyKey, secret string, jwtExpiration time.Duration) *Auth
 	jwtSecret = secret
 	return &AuthService{
 		LegacyCrypto:    NewLegacyCrypto(legacyKey),
+		LegacyDESCrypto: NewLegacyDESCrypto(),
 		JWTManager:      NewJWTManager(secret, jwtExpiration),
 		PasswordManager: NewPasswordManager(),
 	}

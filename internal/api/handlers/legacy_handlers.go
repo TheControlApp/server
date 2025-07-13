@@ -50,110 +50,44 @@ func (h *LegacyHandlers) AppCommand(c *gin.Context) {
 
 	// Validate version first (legacy behavior)
 	if vrs == "012" {
-		// Decrypt password using legacy crypto
-		decryptedPwd, err := h.authService.LegacyCrypto.Decrypt(pwd)
+		// Authenticate user using legacy service (supports DES, AES, plain, and bcrypt)
+		loginResult, err := h.legacyService.USP_Login(usernm, pwd)
 		if err != nil {
-			result = "Failed to decrypt password"
+			result = err.Error()
 		} else {
-			// Authenticate user using legacy database
-			loginResult, err := h.legacyService.USP_Login(usernm, decryptedPwd)
-			if err != nil {
-				result = err.Error()
-			} else {
-				// Handle different command types
-				switch cmd {
-				case "Outstanding":
-					// Get outstanding command count and sender info (USP_GetOutstanding)
-					outstanding, err := h.legacyService.USP_GetOutstanding(loginResult.ID)
-					if err != nil {
-						result = err.Error()
-					} else {
-						// Format exactly like USP_GetOutstanding: [count],[whonext],[verified],[thumbs]
-						result = fmt.Sprintf("[%d],[%s],[%s],[%s]", outstanding.Count, outstanding.WhoNext, outstanding.Verified, outstanding.Thumbs)
-					}
-
-				case "Content":
-					// Get next command content (USP_GetAppContent)
-					content, err := h.legacyService.USP_GetAppContent(loginResult.ID)
-					if err != nil {
-						result = err.Error()
-					} else if content != nil {
-						// Format: [SenderId],[Content],[SenderName]
-						result = fmt.Sprintf("[%s],[%s],[%s]", content.SenderID, content.Content, content.SenderName)
-						// Mark command as completed (USP_CmdComplete)
-						_ = h.legacyService.USP_CmdComplete(loginResult.ID)
-					}
-
-				case "Delete":
-					// Delete outstanding commands (USP_DeleteOutstanding)
-					err := h.legacyService.USP_DeleteOutstanding(loginResult.ID)
-					if err != nil {
-						result = err.Error()
-					}
-
-				case "Invite":
-					// Get invites (USP_GetInvites2)
-					invites, err := h.legacyService.USP_GetInvites2(loginResult.ID)
-					if err != nil {
-						result = err.Error()
-					} else {
-						result = invites
-					}
-
-				case "Relations":
-					// Get relationships (USP_GetRels)
-					relations, err := h.legacyService.USP_GetRels(loginResult.ID)
-					if err != nil {
-						result = err.Error()
-					} else {
-						result = relations
-					}
-
-				default:
-					// Handle other command types (Accept, Reject, Thumbs, etc.)
-					if len(cmd) > 6 {
-						switch cmd[:6] {
-						case "Accept":
-							// USP_AcceptInvite
-							inviteFrom := cmd[6:]
-							err := h.legacyService.USP_AcceptInvite(loginResult.ID, inviteFrom)
-							if err != nil {
-								result = err.Error()
-							} else {
-								result = "Invite accepted: " + inviteFrom
-							}
-						case "Reject":
-							// USP_DeleteInvite
-							inviteFrom := cmd[6:]
-							err := h.legacyService.USP_DeleteInvite(loginResult.ID, inviteFrom)
-							if err != nil {
-								result = err.Error()
-							} else {
-								result = "Invite rejected: " + inviteFrom
-							}
-						case "Thumbs":
-							// USP_thumbsup
-							thumbsValue := cmd[6:]
-							// Parse sender ID from thumbs value
-							var senderID int
-							_, err := fmt.Sscanf(thumbsValue, "%d", &senderID)
-							if err != nil {
-								result = "Invalid thumbs value"
-							} else {
-								err := h.legacyService.USP_thumbsup(loginResult.ID, senderID)
-								if err != nil {
-									result = err.Error()
-								} else {
-									result = "Thumbs up given"
-								}
-							}
-						default:
-							result = "Unknown command: " + cmd
-						}
-					} else {
-						result = "Unknown command: " + cmd
-					}
+			// Handle different command types
+			switch cmd {
+			case "Outstanding":
+				// Get outstanding command count and sender info (USP_GetOutstanding)
+				outstanding, err := h.legacyService.USP_GetOutstanding(loginResult.ID)
+				if err != nil {
+					result = err.Error()
+				} else {
+					// Format exactly like USP_GetOutstanding: [count],[whonext],[verified],[thumbs]
+					result = fmt.Sprintf("[%d],[%s],[%s],[%s]", outstanding.Count, outstanding.WhoNext, outstanding.Verified, outstanding.Thumbs)
 				}
+
+			case "Content":
+				// Get next command content (USP_GetAppContent)
+				content, err := h.legacyService.USP_GetAppContent(loginResult.ID)
+				if err != nil {
+					result = err.Error()
+				} else if content != nil {
+					// Format: [SenderId],[Content],[SenderName]
+					result = fmt.Sprintf("[%s],[%s],[%s]", content.SenderID, content.Content, content.SenderName)
+					// Mark command as completed (USP_CmdComplete)
+					_ = h.legacyService.USP_CmdComplete(loginResult.ID)
+				}
+
+			case "Delete":
+				// Delete outstanding commands (USP_DeleteOutstanding)
+				err := h.legacyService.USP_DeleteOutstanding(loginResult.ID)
+				if err != nil {
+					result = err.Error()
+				}
+
+			default:
+				result = "Unknown command: " + cmd
 			}
 		}
 	} else {

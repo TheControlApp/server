@@ -88,6 +88,9 @@ func setupLegacyRoutes(router *gin.Engine, handlers *handlers.LegacyHandlers) {
 	router.POST("/DeleteOut.aspx", handlers.DeleteOut)
 	router.GET("/GetOptions.aspx", handlers.GetOptions)
 
+	// Test endpoint for authentication debugging
+	// router.GET("/TestAuth.aspx", handlers.TestAuth)
+
 	// Legacy web interface endpoints (placeholder for now)
 	router.GET("/Default.aspx", func(c *gin.Context) {
 		c.String(200, "Legacy Default page - TODO")

@@ -4,8 +4,10 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/thecontrolapp/controlme-go/internal/auth"
 	"github.com/thecontrolapp/controlme-go/internal/models"
+	"golang.org/x/crypto/bcrypt"
 	"gorm.io/gorm"
 )
 
@@ -25,12 +27,13 @@ func NewLegacyService(db *gorm.DB, authService *auth.AuthService) *LegacyService
 
 // LegacyLoginResult represents the result of USP_Login stored procedure
 type LegacyLoginResult struct {
-	ID       int    `json:"id"`
-	Role     string `json:"role"`
-	Verified bool   `json:"verified"`
+	ID       uuid.UUID `json:"id"` // Use UUID instead of int
+	Role     string    `json:"role"`
+	Verified bool      `json:"verified"`
 }
 
 // USP_Login implements the exact logic from the legacy USP_Login stored procedure
+// Modified to support DES-encrypted passwords from .NET clients
 func (ls *LegacyService) USP_Login(username, password string) (*LegacyLoginResult, error) {
 	// First get user by screen name (using modern User model)
 	var user models.User
@@ -42,27 +45,53 @@ func (ls *LegacyService) USP_Login(username, password string) (*LegacyLoginResul
 		return nil, fmt.Errorf("database error: %w", err)
 	}
 
-	// Decrypt stored password and compare with plain text input
+	// Method 1: Try DES decryption (for .NET client compatibility)
+	// Client sends DES-encrypted password, compare with stored plain/encrypted password
+	decryptedClientPassword, err := ls.auth.LegacyDESCrypto.Decrypt(password)
+	if err == nil {
+		// Successfully decrypted client's DES password
+		// Now check against stored password (which could be plain, encrypted, or hashed)
+
+		// Try 1a: Compare decrypted client password with stored encrypted password (decrypt both)
+		decryptedStoredPassword, aesErr := ls.auth.LegacyCrypto.Decrypt(user.Password)
+		if aesErr == nil && decryptedStoredPassword == decryptedClientPassword {
+			ls.db.Model(&user).Update("login_date", time.Now())
+			return &LegacyLoginResult{ID: user.ID, Role: user.Role, Verified: user.Verified}, nil
+		}
+
+		// Try 1b: Compare decrypted client password with stored plain password
+		if user.Password == decryptedClientPassword {
+			ls.db.Model(&user).Update("login_date", time.Now())
+			return &LegacyLoginResult{ID: user.ID, Role: user.Role, Verified: user.Verified}, nil
+		}
+
+		// Try 1c: Compare decrypted client password with stored bcrypt hash
+		if bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(decryptedClientPassword)) == nil {
+			ls.db.Model(&user).Update("login_date", time.Now())
+			return &LegacyLoginResult{ID: user.ID, Role: user.Role, Verified: user.Verified}, nil
+		}
+	}
+
+	// Method 2: Try AES decryption (legacy compatibility)
 	decryptedPassword, err := ls.auth.LegacyCrypto.Decrypt(user.Password)
-	if err != nil {
-		return nil, fmt.Errorf("password decryption failed: %w", err)
+	if err == nil && decryptedPassword == password {
+		ls.db.Model(&user).Update("login_date", time.Now())
+		return &LegacyLoginResult{ID: user.ID, Role: user.Role, Verified: user.Verified}, nil
 	}
 
-	if decryptedPassword != password {
-		return nil, fmt.Errorf("invalid password")
+	// Method 3: Try direct password comparison (both stored and client are plain text)
+	if user.Password == password {
+		ls.db.Model(&user).Update("login_date", time.Now())
+		return &LegacyLoginResult{ID: user.ID, Role: user.Role, Verified: user.Verified}, nil
 	}
 
-	// Update login date
-	ls.db.Model(&user).Update("login_date", time.Now())
+	// Method 4: Try bcrypt comparison (stored is bcrypt hash, client is plain text)
+	if bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(password)) == nil {
+		ls.db.Model(&user).Update("login_date", time.Now())
+		return &LegacyLoginResult{ID: user.ID, Role: user.Role, Verified: user.Verified}, nil
+	}
 
-	// Convert UUID to int for legacy compatibility (we'll need to implement this mapping)
-	legacyID := int(user.ID.ID()) // This is a simplified conversion - you may need a proper mapping table
-
-	return &LegacyLoginResult{
-		ID:       legacyID,
-		Role:     user.Role,
-		Verified: user.Verified,
-	}, nil
+	return nil, fmt.Errorf("invalid password")
 }
 
 // LegacyOutstandingResult represents the result of USP_GetOutstanding stored procedure
@@ -74,15 +103,15 @@ type LegacyOutstandingResult struct {
 }
 
 // USP_GetOutstanding implements the exact logic from the legacy USP_GetOutstanding stored procedure
-func (ls *LegacyService) USP_GetOutstanding(userID int) (*LegacyOutstandingResult, error) {
+func (ls *LegacyService) USP_GetOutstanding(userID uuid.UUID) (*LegacyOutstandingResult, error) {
 	// DELETE cmd FROM ControlAppCmd cmd
 	// WHERE SenderId in (Select BlockeeId FROM Block where BlockerId=@userID)
 	// AND SubId=@userID
 	ls.db.Exec("DELETE cmd FROM ControlAppCmd cmd WHERE SenderId in (Select BlockeeId FROM Block where BlockerId=?) AND SubId=?", userID, userID)
 
-	// Get user info
-	var user models.LegacyUser
-	err := ls.db.First(&user, "Id = ?", userID).Error
+	// Get user info (using the modern user model that we have)
+	var user models.User
+	err := ls.db.First(&user, "id = ?", userID).Error
 	if err != nil {
 		return nil, fmt.Errorf("user not found: %w", err)
 	}
@@ -169,9 +198,9 @@ func (ls *LegacyService) USP_GetAppContent(userID int) (*LegacyAppContentResult,
 	}
 
 	err := ls.db.Table("ControlAppCmd cac").
-		Select("cac.SenderId, u.[Screen Name] as SenderName, cl.Content").
+		Select("cac.sender_id, u.screen_name as SenderName, cl.content").
 		Joins("join CommandList cl on cac.CmdId = cl.CmdId").
-		Joins("join Users u on cac.SenderId = u.Id").
+		Joins("join users u on cac.sender_id = u.id").
 		Where("cac.SubId = ?", userID).
 		Order("cl.SendDate ASC").
 		First(&result).Error
@@ -227,7 +256,7 @@ func (ls *LegacyService) USP_CmdComplete(userID int) error {
 func (ls *LegacyService) USP_AcceptInvite(subID int, domName string) error {
 	// Insert into Relationship (DomId,SubID)
 	// select Id,@SubId from Users where [Screen Name]=@DomName
-	err := ls.db.Exec("INSERT INTO Relationship (DomId, SubId) SELECT Id, ? FROM Users WHERE [Screen Name] = ?", subID, domName).Error
+	err := ls.db.Exec("INSERT INTO relationships (dom_id, sub_id) SELECT id, ? FROM users WHERE screen_name = ?", subID, domName).Error
 	if err != nil {
 		return fmt.Errorf("failed to create relationship: %w", err)
 	}
@@ -235,7 +264,7 @@ func (ls *LegacyService) USP_AcceptInvite(subID int, domName string) error {
 	// Delete i from Invites i
 	// join Users u on i.DomId=u.Id
 	// where [Screen Name]=@DomName and i.SubId=@SubId
-	err = ls.db.Exec("DELETE i FROM Invites i JOIN Users u ON i.DomId = u.Id WHERE u.[Screen Name] = ? AND i.SubId = ?", domName, subID).Error
+	err = ls.db.Exec("DELETE i FROM invites i JOIN users u ON i.dom_id = u.id WHERE u.screen_name = ? AND i.sub_id = ?", domName, subID).Error
 	if err != nil {
 		return fmt.Errorf("failed to delete invite: %w", err)
 	}
@@ -248,7 +277,7 @@ func (ls *LegacyService) USP_DeleteInvite(subID int, domName string) error {
 	// Delete i from Invites i
 	// join Users u on i.DomId=u.Id
 	// where [Screen Name]=@DomName and i.SubId=@SubId
-	err := ls.db.Exec("DELETE i FROM Invites i JOIN Users u ON i.DomId = u.Id WHERE u.[Screen Name] = ? AND i.SubId = ?", domName, subID).Error
+	err := ls.db.Exec("DELETE i FROM invites i JOIN users u ON i.dom_id = u.id WHERE u.screen_name = ? AND i.sub_id = ?", domName, subID).Error
 	if err != nil {
 		return fmt.Errorf("failed to delete invite: %w", err)
 	}
@@ -299,11 +328,11 @@ func (ls *LegacyService) USP_GetInvites2(subID int) (string, error) {
 	// FOR XML PATH (''), TYPE).value('text()[1]','nvarchar(max)'), 1, 1, '')
 
 	var domUsers []string
-	err := ls.db.Table("Invites i").
-		Select("u.[Screen Name]").
-		Joins("join Users u on i.DomId = u.Id").
-		Where("i.SubId = ?", subID).
-		Pluck("u.[Screen Name]", &domUsers).Error
+	err := ls.db.Table("invites i").
+		Select("u.screen_name").
+		Joins("join users u on i.dom_id = u.id").
+		Where("i.sub_id = ?", subID).
+		Pluck("u.screen_name", &domUsers).Error
 
 	if err != nil {
 		return "", fmt.Errorf("failed to get invites: %w", err)
@@ -325,11 +354,11 @@ func (ls *LegacyService) USP_GetInvites2(subID int) (string, error) {
 func (ls *LegacyService) USP_GetRels(subID int) (string, error) {
 	// Similar to GetInvites2 but for relationships
 	var domUsers []string
-	err := ls.db.Table("Relationship r").
-		Select("u.[Screen Name]").
-		Joins("join Users u on r.DomId = u.Id").
-		Where("r.SubId = ?", subID).
-		Pluck("u.[Screen Name]", &domUsers).Error
+	err := ls.db.Table("relationships r").
+		Select("u.screen_name").
+		Joins("join users u on r.dom_id = u.id").
+		Where("r.sub_id = ?", subID).
+		Pluck("u.screen_name", &domUsers).Error
 
 	if err != nil {
 		return "", fmt.Errorf("failed to get relationships: %w", err)
