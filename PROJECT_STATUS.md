@@ -19,11 +19,13 @@
 - Bcrypt password hashing only
 - RESTful API design throughout
 - Removed compatibility tools that depended on legacy crypto
+- Removed Redis dependency for single-server deployment
 
 #### 3. **Updated Documentation**
 - Updated README.md to remove legacy references
 - Removed obsolete PASSWORD_FORMAT_ANALYSIS.md
 - Cleaned up legacy roadmap items
+- Stripped Redis references from all documentation
 - Fixed struct field mismatches in seed data
 - Ensured all Go code compiles and passes `go vet`
 - Applied consistent code formatting with `gofmt`

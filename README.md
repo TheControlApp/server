@@ -7,7 +7,7 @@ A modern, secure, and scalable rewrite of the ControlMe platform in Go, providin
 - ✅ **Modern API**: RESTful API with JWT authentication
 - ✅ **Real-time Communication**: WebSocket support for instant messaging
 - ✅ **Secure**: Modern authentication, bcrypt password hashing, HTTPS support
-- ✅ **Scalable**: Docker-based deployment, Redis caching
+- ✅ **Scalable**: Docker-based deployment
 - ✅ **Cross-platform**: Runs on Linux, macOS, and Windows
 - ✅ **Well-tested**: Comprehensive test coverage
 
@@ -157,7 +157,6 @@ Base URL: `http://localhost:8080/api/v1`
 - **Language**: Go 1.21+
 - **Web Framework**: Gin
 - **Database**: PostgreSQL with GORM ORM
-- **Cache**: Redis
 - **Authentication**: JWT with bcrypt password hashing
 - **Real-time**: WebSocket with message hub
 - **Deployment**: Docker Compose

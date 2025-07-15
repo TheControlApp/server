@@ -12,18 +12,6 @@ database:
   password: postgres
   sslmode: disable
 
-redis:
-  host: localhost
-  port: 6379
-  password: ""
-  db: 0
-
 auth:
   jwt_secret: "dev-secret-key-change-in-production"
   jwt_expiration: 86400
-
-legacy:
-  crypto_key: "dev-crypto-key"
-  upgrade_notifications: true
-  notification_frequency: 24
-  sunset_date: "2025-10-01"

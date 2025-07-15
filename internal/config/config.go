@@ -10,7 +10,6 @@ type Config struct {
 	Environment string   `mapstructure:"environment"`
 	Server      Server   `mapstructure:"server"`
 	Database    Database `mapstructure:"database"`
-	Redis       Redis    `mapstructure:"redis"`
 	Auth        Auth     `mapstructure:"auth"`
 }
 
@@ -26,13 +25,6 @@ type Database struct {
 	Username string `mapstructure:"username"`
 	Password string `mapstructure:"password"`
 	SSLMode  string `mapstructure:"sslmode"`
-}
-
-type Redis struct {
-	Host     string `mapstructure:"host"`
-	Port     int    `mapstructure:"port"`
-	Password string `mapstructure:"password"`
-	DB       int    `mapstructure:"db"`
 }
 
 type Auth struct {
@@ -67,9 +59,6 @@ func Load() (*Config, error) {
 	viper.SetDefault("database.username", "postgres")
 	viper.SetDefault("database.password", "postgres")
 	viper.SetDefault("database.sslmode", "disable")
-	viper.SetDefault("redis.host", "localhost")
-	viper.SetDefault("redis.port", 6379)
-	viper.SetDefault("redis.db", 0)
 	viper.SetDefault("auth.jwt_expiration", 86400) // 24 hours
 
 	// Read environment variables
@@ -81,9 +70,6 @@ func Load() (*Config, error) {
 	viper.BindEnv("database.name", "DB_NAME")
 	viper.BindEnv("database.username", "DB_USER")
 	viper.BindEnv("database.password", "DB_PASSWORD")
-	viper.BindEnv("redis.host", "REDIS_HOST")
-	viper.BindEnv("redis.port", "REDIS_PORT")
-	viper.BindEnv("redis.password", "REDIS_PASSWORD")
 	viper.BindEnv("auth.jwt_secret", "JWT_SECRET")
 
 	if err := viper.ReadInConfig(); err != nil {

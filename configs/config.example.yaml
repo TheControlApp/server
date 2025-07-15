@@ -24,15 +24,6 @@ database:
   max_idle_conns: 5
   conn_max_lifetime: 5m
 
-# Redis configuration (for caching and WebSocket scaling)
-redis:
-  host: localhost
-  port: 6379
-  password: ""
-  db: 0
-  max_retries: 3
-  dial_timeout: 5s
-
 # Authentication configuration
 auth:
   # JWT secret for modern API authentication

@@ -74,7 +74,7 @@ func Security() gin.HandlerFunc {
 
 // RateLimiter returns a Gin middleware for rate limiting
 func RateLimiter() gin.HandlerFunc {
-	// Simple pass-through rate limiter - TODO: Implement Redis-based rate limiting for production
+	// Simple pass-through rate limiter - TODO: Implement proper rate limiting for production
 	return func(c *gin.Context) {
 		// For now, just pass through - rate limiting can be implemented later
 		c.Next()
