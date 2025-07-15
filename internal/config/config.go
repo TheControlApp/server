@@ -12,7 +12,6 @@ type Config struct {
 	Database    Database `mapstructure:"database"`
 	Redis       Redis    `mapstructure:"redis"`
 	Auth        Auth     `mapstructure:"auth"`
-	Legacy      Legacy   `mapstructure:"legacy"`
 }
 
 type Server struct {
@@ -39,13 +38,6 @@ type Redis struct {
 type Auth struct {
 	JWTSecret     string `mapstructure:"jwt_secret"`
 	JWTExpiration int    `mapstructure:"jwt_expiration"`
-}
-
-type Legacy struct {
-	CryptoKey             string `mapstructure:"crypto_key"`
-	UpgradeNotifications  bool   `mapstructure:"upgrade_notifications"`
-	NotificationFrequency int    `mapstructure:"notification_frequency"`
-	SunsetDate            string `mapstructure:"sunset_date"`
 }
 
 func Load() (*Config, error) {
@@ -79,8 +71,6 @@ func Load() (*Config, error) {
 	viper.SetDefault("redis.port", 6379)
 	viper.SetDefault("redis.db", 0)
 	viper.SetDefault("auth.jwt_expiration", 86400) // 24 hours
-	viper.SetDefault("legacy.upgrade_notifications", true)
-	viper.SetDefault("legacy.notification_frequency", 24) // hours
 
 	// Read environment variables
 	viper.AutomaticEnv()
@@ -95,7 +85,6 @@ func Load() (*Config, error) {
 	viper.BindEnv("redis.port", "REDIS_PORT")
 	viper.BindEnv("redis.password", "REDIS_PASSWORD")
 	viper.BindEnv("auth.jwt_secret", "JWT_SECRET")
-	viper.BindEnv("legacy.crypto_key", "LEGACY_CRYPTO_KEY")
 
 	if err := viper.ReadInConfig(); err != nil {
 		if _, ok := err.(viper.ConfigFileNotFoundError); !ok {

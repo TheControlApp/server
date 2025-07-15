@@ -50,18 +50,6 @@ func (us *UserService) AuthenticateUser(username, password string) (*models.User
 	return &user, nil
 }
 
-// AuthenticateLegacyUser authenticates a user with legacy encrypted password
-func (us *UserService) AuthenticateLegacyUser(username, encryptedPassword string) (*models.User, error) {
-	// Decrypt the password using legacy crypto
-	decryptedPassword, err := us.auth.LegacyCrypto.Decrypt(encryptedPassword)
-	if err != nil {
-		return nil, fmt.Errorf("failed to decrypt password: %w", err)
-	}
-
-	// Authenticate with decrypted password
-	return us.AuthenticateUser(username, decryptedPassword)
-}
-
 // CreateUserRequest is used for creating a new user via modern API
 type CreateUserRequest struct {
 	LoginName  string `json:"login_name" binding:"required"`

@@ -12,7 +12,7 @@ import (
 	"gorm.io/gorm/logger"
 )
 
-// User model with correct legacy column names
+// User model with correct database column names for the new Users table
 type User struct {
 	ID           uuid.UUID `gorm:"column:Id;type:uuid;primary_key" json:"id"`
 	ScreenName   string    `gorm:"column:Screen Name;size:50;not null" json:"screen_name"`

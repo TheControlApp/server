@@ -38,7 +38,7 @@ func (cs *CommandService) GetPendingCommandCount(userID uuid.UUID) (int64, error
 
 	// If user doesn't allow anonymous commands, delete them (using special anonymous UUID)
 	if !user.AnonCmd {
-		// Use a special UUID that represents anonymous sender (sender_id = -1 in legacy)
+		// Use a special UUID that represents anonymous sender
 		anonymousID := uuid.MustParse("00000000-0000-0000-0000-000000000001")
 		cs.db.Where("sender_id = ? AND sub_id = ?", anonymousID, userID).Delete(&models.ControlAppCmd{})
 	}
@@ -69,7 +69,7 @@ func (cs *CommandService) GetNextCommand(userID uuid.UUID) (*models.ControlAppCm
 	}
 
 	if !user.AnonCmd {
-		// Use a special UUID that represents anonymous sender (sender_id = -1 in legacy)
+		// Use a special UUID that represents anonymous sender
 		anonymousID := uuid.MustParse("00000000-0000-0000-0000-000000000001")
 		cs.db.Where("sender_id = ? AND sub_id = ?", anonymousID, userID).Delete(&models.ControlAppCmd{})
 	}

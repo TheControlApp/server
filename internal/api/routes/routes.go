@@ -16,13 +16,10 @@ import (
 func SetupRoutes(router *gin.Engine, db *gorm.DB, hub *websocket.Hub, cfg *config.Config) {
 	// Initialize services
 	jwtExpiration := time.Duration(cfg.Auth.JWTExpiration) * time.Hour
-	authService := auth.NewAuthService(cfg.Legacy.CryptoKey, cfg.Auth.JWTSecret, jwtExpiration)
+	authService := auth.NewAuthService(cfg.Auth.JWTSecret, jwtExpiration)
 	userService := services.NewUserService(db, authService)
-	cmdService := services.NewCommandService(db)
-	legacyService := services.NewLegacyService(db, authService)
 
 	// Initialize handlers
-	legacyHandlers := handlers.NewLegacyHandlers(db, userService, cmdService, legacyService, authService, cfg)
 	userHandlers := handlers.NewUserHandlers(userService)
 
 	// Health check endpoint
@@ -30,7 +27,7 @@ func SetupRoutes(router *gin.Engine, db *gorm.DB, hub *websocket.Hub, cfg *confi
 		c.JSON(200, gin.H{
 			"status":  "ok",
 			"service": "controlme-go",
-			"message": "Hot reload working!",
+			"message": "Server running with modern authentication",
 		})
 	})
 
@@ -72,56 +69,5 @@ func SetupRoutes(router *gin.Engine, db *gorm.DB, hub *websocket.Hub, cfg *confi
 
 	router.GET("/ws/web", func(c *gin.Context) {
 		c.JSON(200, gin.H{"message": "WebSocket web endpoint - TODO"})
-	})
-
-	// Legacy routes (exact compatibility)
-	setupLegacyRoutes(router, legacyHandlers)
-}
-
-// setupLegacyRoutes sets up the legacy ASP.NET compatible routes
-func setupLegacyRoutes(router *gin.Engine, handlers *handlers.LegacyHandlers) {
-	// Legacy command endpoints
-	router.GET("/AppCommand.aspx", handlers.AppCommand)
-	router.GET("/GetContent.aspx", handlers.GetContent)
-	router.GET("/GetCount.aspx", handlers.GetCount)
-	router.POST("/ProcessComplete.aspx", handlers.ProcessComplete)
-	router.POST("/DeleteOut.aspx", handlers.DeleteOut)
-	router.GET("/GetOptions.aspx", handlers.GetOptions)
-
-	// Test endpoint for authentication debugging
-	// router.GET("/TestAuth.aspx", handlers.TestAuth)
-
-	// Legacy web interface endpoints (placeholder for now)
-	router.GET("/Default.aspx", func(c *gin.Context) {
-		c.String(200, "Legacy Default page - TODO")
-	})
-
-	router.GET("/Messages.aspx", func(c *gin.Context) {
-		c.String(200, "Legacy Messages page - TODO")
-	})
-
-	router.POST("/Upload.aspx", func(c *gin.Context) {
-		c.String(200, "Legacy Upload endpoint - TODO")
-	})
-
-	// Legacy auth pages (placeholder for now)
-	router.GET("/Pages/Login.aspx", func(c *gin.Context) {
-		c.String(200, "Legacy Login page - TODO")
-	})
-
-	router.POST("/Pages/Login.aspx", func(c *gin.Context) {
-		c.String(200, "Legacy Login processing - TODO")
-	})
-
-	router.GET("/Pages/Register.aspx", func(c *gin.Context) {
-		c.String(200, "Legacy Register page - TODO")
-	})
-
-	router.POST("/Pages/Register.aspx", func(c *gin.Context) {
-		c.String(200, "Legacy Register processing - TODO")
-	})
-
-	router.GET("/Pages/ControlPC.aspx", func(c *gin.Context) {
-		c.String(200, "Legacy ControlPC page - TODO")
 	})
 }
