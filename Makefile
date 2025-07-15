@@ -1,6 +1,6 @@
 # ControlMe Go Development Makefile
 
-.PHONY: help setup dev build test clean docker-up docker-down docker-clean install-tools lint fmt vet seed test-legacy logs install-air run
+.PHONY: help setup dev build test clean docker-up docker-down docker-clean install-tools lint fmt vet logs install-air run
 
 # Default target
 help:
@@ -17,8 +17,6 @@ help:
 	@echo "  docker-down - Stop Docker services"
 	@echo "  docker-clean - Clean Docker volumes"
 	@echo "  install-tools - Install development tools"
-	@echo "  seed        - Run database seed data"
-	@echo "  test-legacy - Test legacy endpoint compatibility"
 	@echo "  logs        - Show Docker service logs"
 
 # Set up development environment
@@ -95,12 +93,4 @@ install-tools:
 	@go install github.com/cosmtrek/air@latest
 	@echo "✅ Tools installed"
 
-# Run seed data
-seed:
-	@echo "🌱 Running seed data..."
-	@go run cmd/tools/seed-data/main.go
 
-# Test legacy endpoints
-test-legacy:
-	@echo "🧪 Testing legacy endpoints..."
-	@./scripts/test-legacy-endpoints.sh

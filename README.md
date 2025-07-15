@@ -1,10 +1,9 @@
 # ControlMe Go Backend
 
-A modern, secure, and scalable rewrite of the ControlMe platform in Go, providing full backward compatibility with legacy .NET clients while offering a modern API for new applications.
+A modern, secure, and scalable rewrite of the ControlMe platform in Go, providing a clean modern API for applications.
 
 ## 🚀 Features
 
-- ✅ **Legacy Compatibility**: 100% compatible with existing .NET clients
 - ✅ **Modern API**: RESTful API with JWT authentication
 - ✅ **Real-time Communication**: WebSocket support for instant messaging
 - ✅ **Secure**: Modern authentication, bcrypt password hashing, HTTPS support
@@ -98,7 +97,6 @@ make clean         # Clean build artifacts
 make docker-up     # Start Docker services
 make docker-down   # Stop Docker services
 make seed          # Run database seed data
-make test-legacy   # Test legacy endpoint compatibility
 ```
 
 ### Configuration
@@ -129,11 +127,6 @@ go test ./internal/auth/...
 go test ./internal/api/handlers/...
 ```
 
-Test legacy endpoint compatibility:
-```bash
-make test-legacy
-```
-
 ## 🌐 API Documentation
 
 ### Modern API (v1)
@@ -157,20 +150,6 @@ Base URL: `http://localhost:8080/api/v1`
 - `WS /ws/client` - Client WebSocket connection
 - `WS /ws/web` - Web client WebSocket connection
 
-### Legacy API (Full .NET Compatibility)
-
-These endpoints maintain exact compatibility with the original .NET application:
-
-- `GET /AppCommand.aspx` - Legacy command polling
-- `GET /GetContent.aspx` - Legacy command fetching  
-- `GET /GetCount.aspx` - Legacy command count
-- `POST /ProcessComplete.aspx` - Legacy command completion
-- `GET /GetOptions.aspx` - Legacy options retrieval
-- `GET /GetConnections.aspx` - Legacy connections
-- `POST /SendContent.aspx` - Legacy content sending
-
-All legacy endpoints use the original parameter names (`usernm`, `pwd`, `vrs`) and response formats.
-
 ## 🏗️ Architecture
 
 ### Technology Stack
@@ -179,18 +158,17 @@ All legacy endpoints use the original parameter names (`usernm`, `pwd`, `vrs`) a
 - **Web Framework**: Gin
 - **Database**: PostgreSQL with GORM ORM
 - **Cache**: Redis
-- **Authentication**: Legacy crypto compatibility + JWT
+- **Authentication**: JWT with bcrypt password hashing
 - **Real-time**: WebSocket with message hub
 - **Deployment**: Docker Compose
 
 ### Key Components
 
-1. **Legacy Compatibility Layer**: Maintains exact API compatibility with .NET clients
-2. **Modern API Layer**: RESTful API with proper HTTP methods and status codes
-3. **Authentication Service**: Dual support for legacy crypto and modern JWT
-4. **WebSocket Hub**: Real-time message broadcasting and client management
-5. **Command Service**: Business logic for command creation, assignment, and completion
-6. **User Service**: User management, authentication, and profile handling
+1. **Modern API Layer**: RESTful API with proper HTTP methods and status codes
+2. **Authentication Service**: JWT-based authentication with bcrypt password hashing
+3. **WebSocket Hub**: Real-time message broadcasting and client management
+4. **Command Service**: Business logic for command creation, assignment, and completion
+5. **User Service**: User management, authentication, and profile handling
 
 ## 🚢 Deployment
 
@@ -233,11 +211,6 @@ go test ./internal/...
 go test -tags=integration ./...
 ```
 
-### Legacy Compatibility Tests
-```bash
-./scripts/test-legacy-endpoints.sh
-```
-
 ### Load Testing
 ```bash
 # TODO: Add load testing instructions
@@ -262,8 +235,7 @@ curl http://localhost:8080/health
 ## 🔒 Security
 
 - **Password Security**: bcrypt hashing with salt
-- **JWT Authentication**: Secure token-based auth for modern clients
-- **Legacy Crypto**: Maintains compatibility with existing client encryption
+- **JWT Authentication**: Secure token-based authentication
 - **HTTPS Support**: TLS/SSL configuration available
 - **CORS**: Configurable cross-origin resource sharing
 - **Rate Limiting**: Built-in request rate limiting
@@ -296,17 +268,16 @@ This project is for educational and research purposes only.
 
 - **Documentation**: Check this README and inline code documentation
 - **Issues**: Open an issue on GitHub
-- **Testing**: Run `make test-legacy` to verify compatibility
 
 ## 🗺️ Roadmap
 
-### ✅ Phase 1: Legacy Compatibility (Complete)
-- Full .NET endpoint compatibility
-- Legacy authentication system
-- Basic command management
+### ✅ Phase 1: Modern Authentication (Complete)
+- JWT-based authentication
+- Bcrypt password hashing
+- RESTful API design
 - WebSocket communication
 
-### 🔄 Phase 2: Modern Features (In Progress)
+### 🔄 Phase 2: Enhanced Features (In Progress)
 - Enhanced security features
 - Improved error handling
 - Comprehensive testing

@@ -74,8 +74,9 @@ func Security() gin.HandlerFunc {
 
 // RateLimiter returns a Gin middleware for rate limiting
 func RateLimiter() gin.HandlerFunc {
-	// TODO: Implement rate limiting with Redis
+	// Simple pass-through rate limiter - TODO: Implement Redis-based rate limiting for production
 	return func(c *gin.Context) {
+		// For now, just pass through - rate limiting can be implemented later
 		c.Next()
 	}
 }
@@ -83,7 +84,13 @@ func RateLimiter() gin.HandlerFunc {
 // Auth returns a Gin middleware for JWT authentication
 func Auth() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		// TODO: Implement JWT validation
+		// TODO: Implement JWT validation - for now pass through
+		// authHeader := c.GetHeader("Authorization")
+		// if authHeader == "" {
+		//     c.JSON(401, gin.H{"error": "Authorization header required"})
+		//     c.Abort()
+		//     return
+		// }
 		c.Next()
 	}
 }

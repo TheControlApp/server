@@ -2,7 +2,7 @@ package config
 
 import (
 	"os"
-	
+
 	"github.com/spf13/viper"
 )
 
@@ -51,7 +51,7 @@ func Load() (*Config, error) {
 			configFile = configFile[:len(configFile)-5]
 		}
 	}
-	
+
 	viper.SetConfigName(configFile)
 	viper.SetConfigType("yaml")
 	viper.AddConfigPath("./configs")
@@ -74,7 +74,7 @@ func Load() (*Config, error) {
 
 	// Read environment variables
 	viper.AutomaticEnv()
-	
+
 	// Bind specific environment variables to config keys
 	viper.BindEnv("database.host", "DB_HOST")
 	viper.BindEnv("database.port", "DB_PORT")

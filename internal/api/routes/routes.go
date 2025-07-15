@@ -18,9 +18,13 @@ func SetupRoutes(router *gin.Engine, db *gorm.DB, hub *websocket.Hub, cfg *confi
 	jwtExpiration := time.Duration(cfg.Auth.JWTExpiration) * time.Hour
 	authService := auth.NewAuthService(cfg.Auth.JWTSecret, jwtExpiration)
 	userService := services.NewUserService(db, authService)
+	commandService := services.NewCommandService(db)
 
 	// Initialize handlers
 	userHandlers := handlers.NewUserHandlers(userService)
+	authHandlers := handlers.NewAuthHandlers(userService)
+	commandHandlers := handlers.NewCommandHandlers(commandService)
+	wsHandlers := handlers.NewWebSocketHandlers(hub)
 
 	// Health check endpoint
 	router.GET("/health", func(c *gin.Context) {
@@ -37,23 +41,15 @@ func SetupRoutes(router *gin.Engine, db *gorm.DB, hub *websocket.Hub, cfg *confi
 		// Authentication routes
 		auth := v1.Group("/auth")
 		{
-			auth.POST("/login", func(c *gin.Context) {
-				c.JSON(200, gin.H{"message": "Login endpoint - TODO"})
-			})
-			auth.POST("/register", func(c *gin.Context) {
-				c.JSON(200, gin.H{"message": "Register endpoint - TODO"})
-			})
+			auth.POST("/login", authHandlers.Login)
+			auth.POST("/register", authHandlers.Register)
 		}
 
 		// Command routes
 		commands := v1.Group("/commands")
 		{
-			commands.GET("/pending", func(c *gin.Context) {
-				c.JSON(200, gin.H{"message": "Pending commands - TODO"})
-			})
-			commands.POST("/complete", func(c *gin.Context) {
-				c.JSON(200, gin.H{"message": "Complete command - TODO"})
-			})
+			commands.GET("/pending", commandHandlers.GetPendingCommands)
+			commands.POST("/complete", commandHandlers.CompleteCommand)
 		}
 
 		// User routes
@@ -63,11 +59,6 @@ func SetupRoutes(router *gin.Engine, db *gorm.DB, hub *websocket.Hub, cfg *confi
 	}
 
 	// WebSocket routes
-	router.GET("/ws/client", func(c *gin.Context) {
-		c.JSON(200, gin.H{"message": "WebSocket client endpoint - TODO"})
-	})
-
-	router.GET("/ws/web", func(c *gin.Context) {
-		c.JSON(200, gin.H{"message": "WebSocket web endpoint - TODO"})
-	})
+	router.GET("/ws/client", wsHandlers.HandleClientWebSocket)
+	router.GET("/ws/web", wsHandlers.HandleWebWebSocket)
 }
