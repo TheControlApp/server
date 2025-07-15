@@ -40,8 +40,8 @@ func NewLegacyHandlers(db *gorm.DB, userService *services.UserService, cmdServic
 // Original: Multiple functions based on cmd parameter
 func (h *LegacyHandlers) AppCommand(c *gin.Context) {
 	// Get query parameters (legacy format)
-	usernm := c.Query("usernm")
-	pwd := c.Query("pwd")
+	usernm := c.Query("UserNm")
+	pwd := c.Query("Pwd")
 	vrs := c.Query("vrs")
 	cmd := c.Query("cmd")
 
@@ -119,8 +119,8 @@ func (h *LegacyHandlers) AppCommand(c *gin.Context) {
 // Original: Gets pending commands for a client (USP_GetAppContent)
 func (h *LegacyHandlers) GetContent(c *gin.Context) {
 	// Get query parameters (exact legacy format)
-	usernm := c.Query("usernm")
-	pwd := c.Query("pwd")
+	usernm := c.Query("UserNm")
+	pwd := c.Query("Pwd")
 	vrs := c.Query("vrs")
 
 	// Initialize response variables
@@ -178,8 +178,8 @@ func (h *LegacyHandlers) GetContent(c *gin.Context) {
 // Original: Gets count of pending commands (USP_GetOutstanding)
 func (h *LegacyHandlers) GetCount(c *gin.Context) {
 	// Get query parameters (exact legacy format)
-	usernm := c.Query("usernm")
-	pwd := c.Query("pwd")
+	usernm := c.Query("UserNm")
+	pwd := c.Query("Pwd")
 	vrs := c.Query("vrs")
 
 	// Initialize response variables
@@ -301,8 +301,8 @@ func (h *LegacyHandlers) DeleteOut(c *gin.Context) {
 // Original: Gets user options/settings
 func (h *LegacyHandlers) GetOptions(c *gin.Context) {
 	// Get query parameters (exact legacy format)
-	user := c.Query("usernm")
-	password := c.Query("pwd")
+	user := c.Query("UserNm")
+	password := c.Query("Pwd")
 	version := c.Query("vrs")
 
 	if user == "" || password == "" {
