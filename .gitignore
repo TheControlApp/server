@@ -90,3 +90,5 @@ Generated_Code/
 
 # Air hot-reload tool
 .air.toml
+
+docs/

@@ -4,6 +4,8 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	swaggerFiles "github.com/swaggo/files"
+	ginSwagger "github.com/swaggo/gin-swagger"
 	"github.com/thecontrolapp/controlme-go/internal/api/handlers"
 	"github.com/thecontrolapp/controlme-go/internal/auth"
 	"github.com/thecontrolapp/controlme-go/internal/config"
@@ -34,6 +36,12 @@ func SetupRoutes(router *gin.Engine, db *gorm.DB, hub *websocket.Hub, cfg *confi
 			"message": "Server running with modern authentication",
 		})
 	})
+
+	// Add Swagger route
+	// The URL points to the auto-generated swagger.json file.
+	router.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler,
+		ginSwagger.URL("/swagger/doc.json"),
+	))
 
 	// API v1 routes
 	v1 := router.Group("/api/v1")

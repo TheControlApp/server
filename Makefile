@@ -93,4 +93,5 @@ install-tools:
 	@go install github.com/cosmtrek/air@latest
 	@echo "✅ Tools installed"
 
-
+swagger:
+	@./scripts/swagger.sh

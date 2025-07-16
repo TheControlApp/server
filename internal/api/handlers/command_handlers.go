@@ -17,6 +17,17 @@ func NewCommandHandlers(service *services.CommandService) *CommandHandlers {
 }
 
 // GetPendingCommands gets pending commands for a user
+// GetPendingCommands godoc
+// @Summary      Get pending commands for a user
+// @Description  Retrieves the next pending command for a given user
+// @Tags         commands
+// @Accept       json
+// @Produce      json
+// @Param        user_id query string true "User ID"
+// @Success      200  {object}  map[string]interface{}
+// @Failure      400  {object}  map[string]interface{}
+// @Failure      500  {object}  map[string]interface{}
+// @Router       /commands/pending [get]
 func (h *CommandHandlers) GetPendingCommands(c *gin.Context) {
 	// TODO: Get user ID from JWT token
 	userIDStr := c.Query("user_id")
@@ -46,6 +57,17 @@ func (h *CommandHandlers) GetPendingCommands(c *gin.Context) {
 }
 
 // CompleteCommand marks a command as completed
+// CompleteCommand godoc
+// @Summary      Mark a command as completed
+// @Description  Marks the oldest pending command for a user as completed
+// @Tags         commands
+// @Accept       json
+// @Produce      json
+// @Param        user_id query string true "User ID"
+// @Success      200  {object}  map[string]interface{}
+// @Failure      400  {object}  map[string]interface{}
+// @Failure      500  {object}  map[string]interface{}
+// @Router       /commands/complete [post]
 func (h *CommandHandlers) CompleteCommand(c *gin.Context) {
 	// TODO: Get user ID from JWT token
 	userIDStr := c.Query("user_id")
