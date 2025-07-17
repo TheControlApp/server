@@ -1,38 +1,98 @@
-﻿## Ignore Visual Studio temporary files, build results, and
-## user-specific files
+﻿# ControlMe Go Backend - .gitignore
 
-# Build results
+# Binaries for programs and plugins
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
 bin/
 obj/
-[Ll]og/
-*.log
 
-# User-specific files
-*.user
-*.userosscache
-*.suo
-*.sln.docstates
+# Test binary, built with `go test -c`
+*.test
+
+# Output of the go coverage tool
+*.out
+
+# Go workspace file
+go.work
+
+# Go build cache
+.cache/
+
+# Dependency directories
+vendor/
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Environment files
+.env
+.env.local
+.env.*.local
+
+# Configuration files (keep examples)
+configs/config.yaml
+!configs/config.example.yaml
+
+# Logs
+logs/
+*.log
+[Ll]og/
+
+# Runtime data
+pids/
+*.pid
+*.seed
+*.pid.lock
+
+# Coverage directory
+coverage/
+
+# Documentation build
+docs/build/
+
+# Temporary files
+tmp/
+temp/
+
+# Build artifacts
+dist/
+build/
+
+# Database files
+*.db
+*.sqlite
+*.sqlite3
+
+# Docker volumes
+docker-data/
 
 # Auto-generated files
 Generated_Code/
 
-# VS Code settings
-.vscode/
-
-# Rider settings
-.idea/
-
-
-# Local history for some extensions
+# Local history
 .localhistory/
 
-# IIS Express
-.vs/
-*.iisexpress/
+# Air hot-reload tool
+.air.toml
 
-# Logs
-*.log
+docs/
 
-# OS junk
-*.DS_Store
-Thumbs.db
+# Agent tracking (DO NOT IGNORE - these files should be tracked)
+!.copilot/
+!.copilot/*

@@ -1,0 +1,17 @@
+environment: development
+
+server:
+  port: 8080
+  host: localhost
+
+database:
+  host: localhost
+  port: 5432
+  name: controlme
+  username: postgres
+  password: postgres
+  sslmode: disable
+
+auth:
+  jwt_secret: "dev-secret-key-change-in-production"
+  jwt_expiration: 86400
