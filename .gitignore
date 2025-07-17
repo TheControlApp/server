@@ -92,3 +92,7 @@ Generated_Code/
 .air.toml
 
 docs/
+
+# Agent tracking (DO NOT IGNORE - these files should be tracked)
+!.copilot/
+!.copilot/*

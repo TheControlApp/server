@@ -11,7 +11,6 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/sirupsen/logrus"
-	_ "github.com/thecontrolapp/controlme-go/docs"
 	"github.com/thecontrolapp/controlme-go/internal/api/routes"
 	"github.com/thecontrolapp/controlme-go/internal/config"
 	"github.com/thecontrolapp/controlme-go/internal/database"
