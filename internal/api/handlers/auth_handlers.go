@@ -21,9 +21,11 @@ type LoginRequest struct {
 }
 
 type RegisterRequest struct {
-	Username   string `json:"username" binding:"required"`
-	Password   string `json:"password" binding:"required"`
-	ScreenName string `json:"screen_name" binding:"required"`
+	Username    string `json:"username" binding:"required"`
+	Password    string `json:"password" binding:"required"`
+	ScreenName  string `json:"screen_name" binding:"required"`
+	Email       string `json:"email" binding:"required"`
+	RandomOptIn bool   `json:"random_opt_in" binding:"required"`
 }
 
 // Login authenticates a user and returns a JWT token
@@ -52,11 +54,16 @@ func (h *AuthHandlers) Login(c *gin.Context) {
 		return
 	}
 
-	// TODO: Generate JWT token
+	token, err := h.UserService.Auth.JWTManager.GenerateToken(user.ID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to generate token"})
+		return
+	}
+
 	c.JSON(http.StatusOK, gin.H{
 		"message": "Login successful",
 		"user":    user,
-		"token":   "jwt-token-placeholder",
+		"token":   token,
 	})
 }
 
@@ -80,9 +87,11 @@ func (h *AuthHandlers) Register(c *gin.Context) {
 	}
 
 	userReq := services.CreateUserRequest{
-		ScreenName: req.ScreenName,
-		LoginName:  req.Username,
-		Password:   req.Password,
+		ScreenName:  req.ScreenName,
+		LoginName:   req.Username,
+		Password:    req.Password,
+		Email:       req.Email,
+		RandomOptIn: req.RandomOptIn,
 	}
 
 	user, err := h.UserService.CreateUser(userReq)

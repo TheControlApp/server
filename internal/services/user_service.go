@@ -13,14 +13,14 @@ import (
 // UserService handles user-related operations
 type UserService struct {
 	db   *gorm.DB
-	auth *auth.AuthService
+	Auth *auth.AuthService
 }
 
 // NewUserService creates a new user service
 func NewUserService(db *gorm.DB, authService *auth.AuthService) *UserService {
 	return &UserService{
 		db:   db,
-		auth: authService,
+		Auth: authService,
 	}
 }
 
@@ -38,7 +38,7 @@ func (us *UserService) AuthenticateUser(username, password string) (*models.User
 	}
 
 	// Verify password
-	err = us.auth.PasswordManager.VerifyPassword(password, user.Password)
+	err = us.Auth.PasswordManager.VerifyPassword(password, user.Password)
 	if err != nil {
 		return nil, fmt.Errorf("invalid password")
 	}
@@ -52,19 +52,29 @@ func (us *UserService) AuthenticateUser(username, password string) (*models.User
 
 // CreateUserRequest is used for creating a new user via modern API
 type CreateUserRequest struct {
-	LoginName  string `json:"login_name" binding:"required"`
-	ScreenName string `json:"screen_name" binding:"required"`
-	Password   string `json:"password" binding:"required"`
+	LoginName   string `json:"login_name" binding:"required"`
+	ScreenName  string `json:"screen_name" binding:"required"`
+	Password    string `json:"password" binding:"required"`
+	Email       string `json:"email" binding:"required"`
+	RandomOptIn bool   `json:"random_opt_in" binding:"required"`
 }
 
 // CreateUser creates a new user with the modern API
 func (us *UserService) CreateUser(req CreateUserRequest) (*models.User, error) {
-	user := models.User{
-		LoginName:  req.LoginName,
-		ScreenName: req.ScreenName,
-		Password:   req.Password, // Use modern hash
+	hashedPassword, err := us.Auth.PasswordManager.HashPassword(req.Password)
+	if err != nil {
+		return nil, fmt.Errorf("failed to hash password: %w", err)
 	}
-	err := us.db.Create(&user).Error
+
+	user := models.User{
+		LoginName:   req.LoginName,
+		ScreenName:  req.ScreenName,
+		Password:    hashedPassword,
+		Email:       req.Email,
+		RandomOptIn: req.RandomOptIn,
+		Role:        "user",
+	}
+	err = us.db.Create(&user).Error
 	if err != nil {
 		return nil, err
 	}

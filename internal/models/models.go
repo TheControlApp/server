@@ -12,9 +12,10 @@ type User struct {
 	ID           uuid.UUID `gorm:"type:uuid;primary_key" json:"id"`
 	ScreenName   string    `gorm:"size:50;not null" json:"screen_name"`
 	LoginName    string    `gorm:"size:50;not null;unique" json:"login_name"`
+	Email        string    `gorm:"size:300;not null;unique" json:"email"`
 	Password     string    `gorm:"size:255;not null" json:"-"`
 	Role         string    `gorm:"size:50" json:"role"`
-	RandOpt      bool      `gorm:"default:false" json:"rand_opt"`
+	RandomOptIn  bool      `gorm:"default:false" json:"random_opt_in"`
 	AnonCmd      bool      `gorm:"default:false" json:"anon_cmd"`
 	Verified     bool      `gorm:"default:false" json:"verified"`
 	VerifiedCode int       `gorm:"default:0" json:"verified_code"`

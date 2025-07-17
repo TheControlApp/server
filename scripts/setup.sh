@@ -36,8 +36,8 @@ echo "⏳ Waiting for services to be ready..."
 sleep 5
 
 # Run database migrations/setup
-echo "� Setting up database..."
-go run cmd/tools/seed-data/main.go
+# echo "� Setting up database..."
+# go run cmd/tools/seed-data/main.go
 
 # Build the server
 echo "🔨 Building server..."

@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/thecontrolapp/controlme-go/internal/config"
+	"github.com/thecontrolapp/controlme-go/internal/models"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 	"gorm.io/gorm/logger"
@@ -46,7 +47,22 @@ func Initialize(cfg *config.Config) (*gorm.DB, error) {
 
 // runMigrations runs the database migrations
 func runMigrations(db *gorm.DB) error {
-	// For now, skip auto-migration and just return success
-	// This allows the server to start without database schema issues
+	// GORM's AutoMigrate will create or update tables to match the models.
+	err := db.AutoMigrate(
+		&models.User{},
+		&models.Command{},
+		&models.ControlAppCmd{},
+		&models.ChatLog{},
+		&models.Group{},
+		&models.GroupMember{},
+		&models.Relationship{},
+		&models.Block{},
+		&models.Report{},
+		&models.Invite{},
+	)
+	if err != nil {
+		return fmt.Errorf("gorm automigrate failed: %w", err)
+	}
+	fmt.Println("✅ Database migration completed successfully.")
 	return nil
 }
