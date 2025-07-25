@@ -22,13 +22,16 @@ type User struct {
 	ThumbsUp     int       `gorm:"default:0" json:"thumbs_up"`
 	CreatedAt    time.Time `json:"created_at"`
 	UpdatedAt    time.Time `json:"updated_at"`
-	LoginDate    time.Time `gorm:"default:CURRENT_TIMESTAMP" json:"login_date"`
+	LoginDate    time.Time `json:"login_date"`
 }
 
-// BeforeCreate sets the ID before creating a user
+// BeforeCreate sets the ID and LoginDate before creating a user
 func (u *User) BeforeCreate(tx *gorm.DB) error {
 	if u.ID == uuid.Nil {
 		u.ID = uuid.New()
+	}
+	if u.LoginDate.IsZero() {
+		u.LoginDate = time.Now()
 	}
 	return nil
 }

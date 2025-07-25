@@ -2,6 +2,7 @@ package database
 
 import (
 	"fmt"
+	"log"
 
 	"github.com/thecontrolapp/controlme-go/internal/config"
 	"github.com/thecontrolapp/controlme-go/internal/models"
@@ -47,22 +48,18 @@ func Initialize(cfg *config.Config) (*gorm.DB, error) {
 
 // runMigrations runs the database migrations
 func runMigrations(db *gorm.DB) error {
-	// GORM's AutoMigrate will create or update tables to match the models.
-	err := db.AutoMigrate(
+	log.Println("Running database migrations...")
+	
+	// Migrate core models based on new architecture
+	if err := db.AutoMigrate(
 		&models.User{},
 		&models.Command{},
 		&models.ControlAppCmd{},
 		&models.ChatLog{},
-		&models.Group{},
-		&models.GroupMember{},
-		&models.Relationship{},
-		&models.Block{},
-		&models.Report{},
-		&models.Invite{},
-	)
-	if err != nil {
-		return fmt.Errorf("gorm automigrate failed: %w", err)
+	); err != nil {
+		return fmt.Errorf("migration failed: %w", err)
 	}
-	fmt.Println("✅ Database migration completed successfully.")
+	
+	log.Println("✅ Database migration completed successfully.")
 	return nil
 }
