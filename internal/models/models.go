@@ -79,27 +79,6 @@ func (cac *ControlAppCmd) BeforeCreate(tx *gorm.DB) error {
 	return nil
 }
 
-// ChatLog represents chat messages
-type ChatLog struct {
-	ID         uuid.UUID `gorm:"type:uuid;primary_key" json:"id"`
-	SenderID   uuid.UUID `gorm:"type:uuid;not null" json:"sender_id"`
-	ReceiverID uuid.UUID `gorm:"type:uuid;not null" json:"receiver_id"`
-	Message    string    `gorm:"type:text;not null" json:"message"`
-	CreatedAt  time.Time `json:"created_at"`
-
-	// Relationships
-	Sender   User `gorm:"foreignKey:SenderID" json:"sender"`
-	Receiver User `gorm:"foreignKey:ReceiverID" json:"receiver"`
-}
-
-// BeforeCreate sets the ID before creating a chat log
-func (cl *ChatLog) BeforeCreate(tx *gorm.DB) error {
-	if cl.ID == uuid.Nil {
-		cl.ID = uuid.New()
-	}
-	return nil
-}
-
 // Group represents user groups
 type Group struct {
 	ID          uuid.UUID `gorm:"type:uuid;primary_key" json:"id"`
@@ -117,49 +96,6 @@ type Group struct {
 func (g *Group) BeforeCreate(tx *gorm.DB) error {
 	if g.ID == uuid.Nil {
 		g.ID = uuid.New()
-	}
-	return nil
-}
-
-// GroupMember represents group membership
-type GroupMember struct {
-	ID        uuid.UUID `gorm:"type:uuid;primary_key" json:"id"`
-	GroupID   uuid.UUID `gorm:"type:uuid;not null" json:"group_id"`
-	UserID    uuid.UUID `gorm:"type:uuid;not null" json:"user_id"`
-	Role      string    `gorm:"size:50;default:'member'" json:"role"`
-	CreatedAt time.Time `json:"created_at"`
-
-	// Relationships
-	Group Group `gorm:"foreignKey:GroupID" json:"group"`
-	User  User  `gorm:"foreignKey:UserID" json:"user"`
-}
-
-// BeforeCreate sets the ID before creating a group member
-func (gm *GroupMember) BeforeCreate(tx *gorm.DB) error {
-	if gm.ID == uuid.Nil {
-		gm.ID = uuid.New()
-	}
-	return nil
-}
-
-// Relationship represents relationships between users
-type Relationship struct {
-	ID        uuid.UUID `gorm:"type:uuid;primary_key" json:"id"`
-	UserID    uuid.UUID `gorm:"type:uuid;not null" json:"user_id"`
-	RelatedID uuid.UUID `gorm:"type:uuid;not null" json:"related_id"`
-	Type      string    `gorm:"size:50;not null" json:"type"`
-	Status    string    `gorm:"size:20;default:'active'" json:"status"`
-	CreatedAt time.Time `json:"created_at"`
-
-	// Relationships
-	User    User `gorm:"foreignKey:UserID" json:"user"`
-	Related User `gorm:"foreignKey:RelatedID" json:"related"`
-}
-
-// BeforeCreate sets the ID before creating a relationship
-func (r *Relationship) BeforeCreate(tx *gorm.DB) error {
-	if r.ID == uuid.Nil {
-		r.ID = uuid.New()
 	}
 	return nil
 }
@@ -203,29 +139,6 @@ type Report struct {
 func (r *Report) BeforeCreate(tx *gorm.DB) error {
 	if r.ID == uuid.Nil {
 		r.ID = uuid.New()
-	}
-	return nil
-}
-
-// Invite represents user invitations
-type Invite struct {
-	ID         uuid.UUID `gorm:"type:uuid;primary_key" json:"id"`
-	SenderID   uuid.UUID `gorm:"type:uuid;not null" json:"sender_id"`
-	ReceiverID uuid.UUID `gorm:"type:uuid;not null" json:"receiver_id"`
-	Type       string    `gorm:"size:50;not null" json:"type"`
-	Status     string    `gorm:"size:20;default:'pending'" json:"status"`
-	CreatedAt  time.Time `json:"created_at"`
-	UpdatedAt  time.Time `json:"updated_at"`
-
-	// Relationships
-	Sender   User `gorm:"foreignKey:SenderID" json:"sender"`
-	Receiver User `gorm:"foreignKey:ReceiverID" json:"receiver"`
-}
-
-// BeforeCreate sets the ID before creating an invite
-func (i *Invite) BeforeCreate(tx *gorm.DB) error {
-	if i.ID == uuid.Nil {
-		i.ID = uuid.New()
 	}
 	return nil
 }
