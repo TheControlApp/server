@@ -17,7 +17,10 @@ func NewCommandService(db *gorm.DB) *CommandService {
 
 func (cs *CommandService) GetPendingCommands(userID uuid.UUID) ([]models.Command, error) {
 	var commands []models.Command
-	err := cs.db.Where("receiver_id = ? AND status = ?", userID, "pending").Find(&commands).Error
+	err := cs.db.Where("receiver_id = ? AND status = ?", userID, "pending").
+		Preload("Sender").
+		Preload("Receiver").
+		Find(&commands).Error
 	return commands, err
 }
 
@@ -36,4 +39,17 @@ func (cs *CommandService) CompleteCommand(commandID uuid.UUID, userID uuid.UUID)
 		return fmt.Errorf("command not found")
 	}
 	return nil
+}
+
+// GetCommandByID gets a command by ID with relationships loaded
+func (cs *CommandService) GetCommandByID(commandID uuid.UUID) (*models.Command, error) {
+	var command models.Command
+	err := cs.db.Where("id = ?", commandID).
+		Preload("Sender").
+		Preload("Receiver").
+		First(&command).Error
+	if err != nil {
+		return nil, fmt.Errorf("command not found: %w", err)
+	}
+	return &command, nil
 }

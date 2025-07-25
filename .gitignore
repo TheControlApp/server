@@ -80,7 +80,7 @@ build/
 *.sqlite3
 
 # Docker volumes
-docker-data/
+data/
 
 # Auto-generated files
 Generated_Code/

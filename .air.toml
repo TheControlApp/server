@@ -5,24 +5,24 @@ tmp_dir = "tmp"
 [build]
   args_bin = []
   bin = "./tmp/main"
-  cmd = "go build -o ./tmp/main cmd/server/main.go"
-  delay = 1000
-  exclude_dir = ["assets", "tmp", "vendor", "testdata", "docker", "bin"]
-  exclude_file = []
-  exclude_regex = ["_test.go"]
-  exclude_unchanged = false
+  cmd = "go build -ldflags='-s -w' -o ./tmp/main cmd/server/main.go"
+  delay = 500
+  exclude_dir = ["assets", "tmp", "vendor", "testdata", "docker", "bin", "data", ".git", "node_modules", "docs"]
+  exclude_file = ["*.md", "*.txt", "*.log", "*.sql", "docker-compose*.yml", "Dockerfile*"]
+  exclude_regex = ["_test\\.go$", "\\.git.*", ".*\\.swp$", ".*\\.tmp$"]
+  exclude_unchanged = true
   follow_symlink = false
   full_bin = ""
-  include_dir = []
-  include_ext = ["go", "tpl", "tmpl", "html", "yaml", "yml"]
+  include_dir = ["cmd", "internal", "configs"]
+  include_ext = ["go", "yaml", "yml", "json"]
   include_file = []
-  kill_delay = "0s"
+  kill_delay = "2s"
   log = "build-errors.log"
   poll = false
   poll_interval = 0
   rerun = false
-  rerun_delay = 500
-  send_interrupt = false
+  rerun_delay = 300
+  send_interrupt = true
   stop_on_root = false
 
 [color]
@@ -34,11 +34,11 @@ tmp_dir = "tmp"
 
 [log]
   main_only = false
-  time = false
+  time = true
 
 [misc]
-  clean_on_exit = false
+  clean_on_exit = true
 
 [screen]
-  clear_on_rebuild = false
-  keep_scroll = true
+  clear_on_rebuild = true
+  keep_scroll = false

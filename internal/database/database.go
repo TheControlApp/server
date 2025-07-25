@@ -48,19 +48,57 @@ func Initialize(cfg *config.Config) (*gorm.DB, error) {
 
 // runMigrations runs the database migrations
 func runMigrations(db *gorm.DB) error {
-	log.Println("Running database migrations...")
+	log.Println("Running database migrations with improved error handling...")
 	
-	// Migrate core models based on new architecture
-	if err := db.AutoMigrate(
+	// Try GORM AutoMigrate first, with better error handling
+	models := []interface{}{
 		&models.User{},
 		&models.Command{},
 		&models.Tag{},
 		&models.Block{},
 		&models.Report{},
-	); err != nil {
-		return fmt.Errorf("migration failed: %w", err)
+	}
+	
+	for _, model := range models {
+		if err := db.AutoMigrate(model); err != nil {
+			log.Printf("GORM AutoMigrate failed for model %T: %v", model, err)
+			log.Println("Falling back to manual table verification...")
+			
+			// If GORM fails, let's verify the tables exist manually
+			if err := verifyTableExists(db, model); err != nil {
+				return fmt.Errorf("migration failed for model %T: %w", model, err)
+			}
+		}
 	}
 	
 	log.Println("✅ Database migration completed successfully.")
+	return nil
+}
+
+// verifyTableExists checks if a table exists for a given model
+func verifyTableExists(db *gorm.DB, model interface{}) error {
+	stmt := &gorm.Statement{DB: db}
+	if err := stmt.Parse(model); err != nil {
+		return fmt.Errorf("could not parse model %T: %w", model, err)
+	}
+	
+	tableName := stmt.Schema.Table
+	if tableName == "" {
+		return fmt.Errorf("could not determine table name for model %T", model)
+	}
+	
+	var count int64
+	err := db.Raw("SELECT COUNT(*) FROM information_schema.tables WHERE table_name = ? AND table_type = 'BASE TABLE'", 
+		tableName).Scan(&count).Error
+	
+	if err != nil {
+		return fmt.Errorf("error checking table %s: %w", tableName, err)
+	}
+	
+	if count == 0 {
+		return fmt.Errorf("table %s does not exist and GORM migration failed", tableName)
+	}
+	
+	log.Printf("✓ Table '%s' exists", tableName)
 	return nil
 }

@@ -1,7 +1,7 @@
 services:
-  postgres:
+  database:
     image: postgres:15-alpine
-    container_name: controlme-postgres
+    container_name: controlme-database
     environment:
       POSTGRES_DB: controlme
       POSTGRES_USER: postgres
@@ -10,7 +10,7 @@ services:
     ports:
       - "5432:5432"
     volumes:
-      - postgres_data:/var/lib/postgresql/data
+      - ./data/database:/var/lib/postgresql/data
       - ./docker/postgres/init.sql:/docker-entrypoint-initdb.d/init.sql
     networks:
       - controlme-network
@@ -22,7 +22,7 @@ services:
       retries: 5
 
   # Uncomment when ready to containerize the Go application
-  controlme-server:
+  server:
     image: cosmtrek/air
     container_name: controlme-server
     working_dir: /app
@@ -31,11 +31,11 @@ services:
     ports:
       - "8080:8080"
     depends_on:
-      postgres:
+      database:
         condition: service_healthy
     environment:
       - CONFIG_FILE=config.docker.yaml  # Use Docker-specific config
-      - DB_HOST=postgres
+      - DB_HOST=database
       - DB_PORT=5432
       - DB_NAME=controlme
       - DB_USER=postgres
