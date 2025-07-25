@@ -15,6 +15,9 @@ import (
 	"github.com/thecontrolapp/controlme-go/internal/config"
 	"github.com/thecontrolapp/controlme-go/internal/database"
 	"github.com/thecontrolapp/controlme-go/internal/websocket"
+
+	// Import generated swagger docs
+	_ "github.com/thecontrolapp/controlme-go/docs/swagger"
 )
 
 // @title ControlMe Go API

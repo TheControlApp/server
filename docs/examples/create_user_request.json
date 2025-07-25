@@ -1,0 +1,7 @@
+{
+  "screen_name": "New User",
+  "login_name": "newuser",
+  "password": "securepassword",
+  "email": "newuser@example.com",
+  "random_opt_in": true
+}

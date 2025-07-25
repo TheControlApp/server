@@ -5,6 +5,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
+	"github.com/thecontrolapp/controlme-go/internal/api/responses"
 	"github.com/thecontrolapp/controlme-go/internal/services"
 )
 
@@ -24,31 +25,31 @@ func NewCommandHandlers(service *services.CommandService) *CommandHandlers {
 // @Accept       json
 // @Produce      json
 // @Param        user_id query string true "User ID"
-// @Success      200  {object}  map[string]interface{}
-// @Failure      400  {object}  map[string]interface{}
-// @Failure      500  {object}  map[string]interface{}
+// @Success      200  {object}  responses.CommandsResponse
+// @Failure      400  {object}  responses.ErrorResponse
+// @Failure      500  {object}  responses.ErrorResponse
 // @Router       /commands/pending [get]
 func (h *CommandHandlers) GetPendingCommands(c *gin.Context) {
 	// TODO: Get user ID from JWT token
 	userIDStr := c.Query("user_id")
 	if userIDStr == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "user_id required"})
+		c.JSON(http.StatusBadRequest, responses.ErrorResponse{Error: "user_id required"})
 		return
 	}
 
 	userID, err := uuid.Parse(userIDStr)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid user ID"})
+		c.JSON(http.StatusBadRequest, responses.ErrorResponse{Error: "Invalid user ID"})
 		return
 	}
 
 	commands, err := h.Service.GetPendingCommands(userID)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch commands"})
+		c.JSON(http.StatusInternalServerError, responses.ErrorResponse{Error: "Failed to fetch commands"})
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"commands": commands})
+	c.JSON(http.StatusOK, responses.CommandsResponse{Commands: commands})
 }
 
 // CompleteCommand marks a command as completed
@@ -60,41 +61,41 @@ func (h *CommandHandlers) GetPendingCommands(c *gin.Context) {
 // @Produce      json
 // @Param        command_id query string true "Command ID"
 // @Param        user_id query string true "User ID"
-// @Success      200  {object}  map[string]interface{}
-// @Failure      400  {object}  map[string]interface{}
-// @Failure      500  {object}  map[string]interface{}
+// @Success      200  {object}  responses.MessageResponse
+// @Failure      400  {object}  responses.ErrorResponse
+// @Failure      500  {object}  responses.ErrorResponse
 // @Router       /commands/complete [post]
 func (h *CommandHandlers) CompleteCommand(c *gin.Context) {
 	// TODO: Get user ID from JWT token
 	userIDStr := c.Query("user_id")
 	if userIDStr == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "user_id required"})
+		c.JSON(http.StatusBadRequest, responses.ErrorResponse{Error: "user_id required"})
 		return
 	}
 
 	commandIDStr := c.Query("command_id")
 	if commandIDStr == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "command_id required"})
+		c.JSON(http.StatusBadRequest, responses.ErrorResponse{Error: "command_id required"})
 		return
 	}
 
 	userID, err := uuid.Parse(userIDStr)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid user ID"})
+		c.JSON(http.StatusBadRequest, responses.ErrorResponse{Error: "Invalid user ID"})
 		return
 	}
 
 	commandID, err := uuid.Parse(commandIDStr)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid command ID"})
+		c.JSON(http.StatusBadRequest, responses.ErrorResponse{Error: "Invalid command ID"})
 		return
 	}
 
 	err = h.Service.CompleteCommand(commandID, userID)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to complete command"})
+		c.JSON(http.StatusInternalServerError, responses.ErrorResponse{Error: "Failed to complete command"})
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"message": "Command completed successfully"})
+	c.JSON(http.StatusOK, responses.MessageResponse{Message: "Command completed successfully"})
 }

@@ -4,6 +4,7 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
+	"github.com/thecontrolapp/controlme-go/internal/api/responses"
 	"github.com/thecontrolapp/controlme-go/internal/services"
 )
 
@@ -36,34 +37,34 @@ type RegisterRequest struct {
 // @Accept       json
 // @Produce      json
 // @Param        credentials body LoginRequest true "User credentials"
-// @Success      200  {object}  map[string]interface{}
-// @Failure      400  {object}  map[string]interface{}
-// @Failure      401  {object}  map[string]interface{}
-// @Failure      500  {object}  map[string]interface{}
+// @Success      200  {object}  responses.AuthResponse
+// @Failure      400  {object}  responses.ErrorResponse
+// @Failure      401  {object}  responses.ErrorResponse
+// @Failure      500  {object}  responses.ErrorResponse
 // @Router       /auth/login [post]
 func (h *AuthHandlers) Login(c *gin.Context) {
 	var req LoginRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request"})
+		c.JSON(http.StatusBadRequest, responses.ErrorResponse{Error: "Invalid request"})
 		return
 	}
 
 	user, err := h.UserService.AuthenticateUser(req.Username, req.Password)
 	if err != nil {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid credentials"})
+		c.JSON(http.StatusUnauthorized, responses.ErrorResponse{Error: "Invalid credentials"})
 		return
 	}
 
 	token, err := h.UserService.Auth.JWTManager.GenerateToken(user.ID)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to generate token"})
+		c.JSON(http.StatusInternalServerError, responses.ErrorResponse{Error: "Failed to generate token"})
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{
-		"message": "Login successful",
-		"user":    user,
-		"token":   token,
+	c.JSON(http.StatusOK, responses.AuthResponse{
+		Message: "Login successful",
+		User:    *user,
+		Token:   token,
 	})
 }
 
@@ -75,14 +76,14 @@ func (h *AuthHandlers) Login(c *gin.Context) {
 // @Accept       json
 // @Produce      json
 // @Param        user body RegisterRequest true "User registration details"
-// @Success      201  {object}  map[string]interface{}
-// @Failure      400  {object}  map[string]interface{}
-// @Failure      500  {object}  map[string]interface{}
+// @Success      201  {object}  responses.UserResponse
+// @Failure      400  {object}  responses.ErrorResponse
+// @Failure      500  {object}  responses.ErrorResponse
 // @Router       /auth/register [post]
 func (h *AuthHandlers) Register(c *gin.Context) {
 	var req RegisterRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request"})
+		c.JSON(http.StatusBadRequest, responses.ErrorResponse{Error: "Invalid request"})
 		return
 	}
 
@@ -96,12 +97,9 @@ func (h *AuthHandlers) Register(c *gin.Context) {
 
 	user, err := h.UserService.CreateUser(userReq)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create user"})
+		c.JSON(http.StatusInternalServerError, responses.ErrorResponse{Error: "Failed to create user"})
 		return
 	}
 
-	c.JSON(http.StatusCreated, gin.H{
-		"message": "User created successfully",
-		"user":    user,
-	})
+	c.JSON(http.StatusCreated, responses.UserResponse{User: *user})
 }

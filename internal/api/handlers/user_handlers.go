@@ -5,6 +5,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
+	"github.com/thecontrolapp/controlme-go/internal/api/responses"
 	"github.com/thecontrolapp/controlme-go/internal/services"
 )
 
@@ -23,16 +24,16 @@ func NewUserHandlers(service *services.UserService) *UserHandlers {
 // @Tags         users
 // @Accept       json
 // @Produce      json
-// @Success      200  {array}  models.User
-// @Failure      500  {object}  map[string]interface{}
+// @Success      200  {object}  responses.UsersResponse
+// @Failure      500  {object}  responses.ErrorResponse
 // @Router       /users [get]
 func (h *UserHandlers) GetUsers(c *gin.Context) {
 	users, err := h.Service.GetAllUsers()
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch users"})
+		c.JSON(http.StatusInternalServerError, responses.ErrorResponse{Error: "Failed to fetch users"})
 		return
 	}
-	c.JSON(http.StatusOK, users)
+	c.JSON(http.StatusOK, responses.UsersResponse{Users: users})
 }
 
 // GetUserByID godoc
@@ -42,23 +43,23 @@ func (h *UserHandlers) GetUsers(c *gin.Context) {
 // @Accept       json
 // @Produce      json
 // @Param        id path string true "User ID"
-// @Success      200  {object}  models.User
-// @Failure      400  {object}  map[string]interface{}
-// @Failure      404  {object}  map[string]interface{}
+// @Success      200  {object}  responses.UserResponse
+// @Failure      400  {object}  responses.ErrorResponse
+// @Failure      404  {object}  responses.ErrorResponse
 // @Router       /users/{id} [get]
 func (h *UserHandlers) GetUserByID(c *gin.Context) {
 	id := c.Param("id")
 	userID, err := uuid.Parse(id)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid user ID"})
+		c.JSON(http.StatusBadRequest, responses.ErrorResponse{Error: "Invalid user ID"})
 		return
 	}
 	user, err := h.Service.GetUserByID(userID)
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "User not found"})
+		c.JSON(http.StatusNotFound, responses.ErrorResponse{Error: "User not found"})
 		return
 	}
-	c.JSON(http.StatusOK, user)
+	c.JSON(http.StatusOK, responses.UserResponse{User: *user})
 }
 
 // CreateUser godoc
@@ -68,20 +69,20 @@ func (h *UserHandlers) GetUserByID(c *gin.Context) {
 // @Accept       json
 // @Produce      json
 // @Param        user body services.CreateUserRequest true "User data"
-// @Success      201  {object}  models.User
-// @Failure      400  {object}  map[string]interface{}
-// @Failure      500  {object}  map[string]interface{}
+// @Success      201  {object}  responses.UserResponse
+// @Failure      400  {object}  responses.ErrorResponse
+// @Failure      500  {object}  responses.ErrorResponse
 // @Router       /users [post]
 func (h *UserHandlers) CreateUser(c *gin.Context) {
 	var req services.CreateUserRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request"})
+		c.JSON(http.StatusBadRequest, responses.ErrorResponse{Error: "Invalid request"})
 		return
 	}
 	user, err := h.Service.CreateUser(req)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create user"})
+		c.JSON(http.StatusInternalServerError, responses.ErrorResponse{Error: "Failed to create user"})
 		return
 	}
-	c.JSON(http.StatusCreated, user)
+	c.JSON(http.StatusCreated, responses.UserResponse{User: *user})
 }

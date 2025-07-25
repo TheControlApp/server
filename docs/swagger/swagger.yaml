@@ -1,0 +1,374 @@
+basePath: /api/v1
+definitions:
+  handlers.LoginRequest:
+    properties:
+      password:
+        type: string
+      username:
+        type: string
+    required:
+    - password
+    - username
+    type: object
+  handlers.RegisterRequest:
+    properties:
+      email:
+        type: string
+      password:
+        type: string
+      random_opt_in:
+        type: boolean
+      screen_name:
+        type: string
+      username:
+        type: string
+    required:
+    - email
+    - password
+    - random_opt_in
+    - screen_name
+    - username
+    type: object
+  models.Command:
+    properties:
+      created_at:
+        type: string
+      id:
+        type: string
+      instructions:
+        description: JSON array of instruction objects
+        type: string
+      receiver:
+        $ref: '#/definitions/models.User'
+      receiver_id:
+        description: 'Optional: specific user target'
+        type: string
+      sender:
+        allOf:
+        - $ref: '#/definitions/models.User'
+        description: Relationships - define them explicitly to avoid migration issues
+      sender_id:
+        description: User who sent the command
+        type: string
+      status:
+        description: pending, delivered, completed
+        type: string
+      tags:
+        description: JSON array of tag names for broadcast
+        type: string
+      updated_at:
+        type: string
+    type: object
+  models.User:
+    properties:
+      anon_cmd:
+        type: boolean
+      created_at:
+        type: string
+      email:
+        type: string
+      id:
+        type: string
+      login_date:
+        type: string
+      login_name:
+        type: string
+      random_opt_in:
+        type: boolean
+      role:
+        type: string
+      screen_name:
+        type: string
+      thumbs_up:
+        type: integer
+      updated_at:
+        type: string
+      verified:
+        type: boolean
+      verified_code:
+        type: integer
+    type: object
+  responses.AuthResponse:
+    properties:
+      message:
+        example: Login successful
+        type: string
+      token:
+        example: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+        type: string
+      user:
+        $ref: '#/definitions/models.User'
+    type: object
+  responses.CommandsResponse:
+    properties:
+      commands:
+        items:
+          $ref: '#/definitions/models.Command'
+        type: array
+    type: object
+  responses.ErrorResponse:
+    properties:
+      error:
+        example: Invalid request
+        type: string
+    type: object
+  responses.MessageResponse:
+    properties:
+      message:
+        example: Operation completed successfully
+        type: string
+    type: object
+  responses.UserResponse:
+    properties:
+      user:
+        $ref: '#/definitions/models.User'
+    type: object
+  responses.UsersResponse:
+    properties:
+      users:
+        items:
+          $ref: '#/definitions/models.User'
+        type: array
+    type: object
+  services.CreateUserRequest:
+    properties:
+      email:
+        type: string
+      login_name:
+        type: string
+      password:
+        type: string
+      random_opt_in:
+        type: boolean
+      screen_name:
+        type: string
+    required:
+    - email
+    - login_name
+    - password
+    - random_opt_in
+    - screen_name
+    type: object
+host: localhost:8080
+info:
+  contact:
+    email: support@swagger.io
+    name: API Support
+    url: http://www.swagger.io/support
+  description: This is a modern, secure, and scalable rewrite of the ControlMe platform
+    in Go.
+  license:
+    name: Apache 2.0
+    url: http://www.apache.org/licenses/LICENSE-2.0.html
+  termsOfService: http://swagger.io/terms/
+  title: ControlMe Go API
+  version: "1.0"
+paths:
+  /auth/login:
+    post:
+      consumes:
+      - application/json
+      description: Authenticates a user and returns a JWT token
+      parameters:
+      - description: User credentials
+        in: body
+        name: credentials
+        required: true
+        schema:
+          $ref: '#/definitions/handlers.LoginRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/responses.AuthResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/responses.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/responses.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/responses.ErrorResponse'
+      summary: User login
+      tags:
+      - auth
+  /auth/register:
+    post:
+      consumes:
+      - application/json
+      description: Creates a new user account
+      parameters:
+      - description: User registration details
+        in: body
+        name: user
+        required: true
+        schema:
+          $ref: '#/definitions/handlers.RegisterRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/responses.UserResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/responses.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/responses.ErrorResponse'
+      summary: Register a new user
+      tags:
+      - auth
+  /commands/complete:
+    post:
+      consumes:
+      - application/json
+      description: Marks a specific command as completed
+      parameters:
+      - description: Command ID
+        in: query
+        name: command_id
+        required: true
+        type: string
+      - description: User ID
+        in: query
+        name: user_id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/responses.MessageResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/responses.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/responses.ErrorResponse'
+      summary: Mark a command as completed
+      tags:
+      - commands
+  /commands/pending:
+    get:
+      consumes:
+      - application/json
+      description: Retrieves pending commands for a given user
+      parameters:
+      - description: User ID
+        in: query
+        name: user_id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/responses.CommandsResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/responses.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/responses.ErrorResponse'
+      summary: Get pending commands for a user
+      tags:
+      - commands
+  /users:
+    get:
+      consumes:
+      - application/json
+      description: Retrieves a list of all users
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/responses.UsersResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/responses.ErrorResponse'
+      summary: Get all users
+      tags:
+      - users
+    post:
+      consumes:
+      - application/json
+      description: Creates a new user
+      parameters:
+      - description: User data
+        in: body
+        name: user
+        required: true
+        schema:
+          $ref: '#/definitions/services.CreateUserRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/responses.UserResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/responses.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/responses.ErrorResponse'
+      summary: Create a new user
+      tags:
+      - users
+  /users/{id}:
+    get:
+      consumes:
+      - application/json
+      description: Retrieves a user by their ID
+      parameters:
+      - description: User ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/responses.UserResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/responses.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/responses.ErrorResponse'
+      summary: Get a user by ID
+      tags:
+      - users
+schemes:
+- http
+- https
+swagger: "2.0"
