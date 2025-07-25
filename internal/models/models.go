@@ -36,15 +36,20 @@ func (u *User) BeforeCreate(tx *gorm.DB) error {
 	return nil
 }
 
-// Command represents a command in the system
+// Command represents a command assignment in the system
 type Command struct {
-	ID        uuid.UUID `gorm:"type:uuid;primary_key" json:"id"`
-	Type      string    `gorm:"size:50;not null" json:"type"`
-	Content   string    `gorm:"type:text" json:"content"`
-	Data      string    `gorm:"type:text" json:"data"`
-	Status    string    `gorm:"size:20;default:'pending'" json:"status"`
-	CreatedAt time.Time `json:"created_at"`
-	UpdatedAt time.Time `json:"updated_at"`
+	ID           uuid.UUID  `gorm:"type:uuid;primary_key" json:"id"`
+	Instructions string     `gorm:"type:text;not null" json:"instructions"`         // JSON array of instruction objects
+	SenderID     uuid.UUID  `gorm:"type:uuid;not null" json:"sender_id"`            // User who sent the command
+	ReceiverID   *uuid.UUID `gorm:"type:uuid" json:"receiver_id,omitempty"`         // Optional: specific user target
+	Tags         string     `gorm:"type:text" json:"tags"`                          // JSON array of tag names for broadcast
+	Status       string     `gorm:"size:20;default:'pending'" json:"status"`       // pending, delivered, completed
+	CreatedAt    time.Time  `json:"created_at"`
+	UpdatedAt    time.Time  `json:"updated_at"`
+
+	// Relationships
+	Sender   User  `gorm:"foreignKey:SenderID" json:"sender"`
+	Receiver *User `gorm:"foreignKey:ReceiverID" json:"receiver,omitempty"`
 }
 
 // BeforeCreate sets the ID before creating a command
@@ -55,47 +60,19 @@ func (c *Command) BeforeCreate(tx *gorm.DB) error {
 	return nil
 }
 
-// ControlAppCmd represents the command assignment table
-type ControlAppCmd struct {
-	ID         uuid.UUID  `gorm:"type:uuid;primary_key" json:"id"`
-	SenderID   uuid.UUID  `gorm:"type:uuid;not null" json:"sender_id"`
-	SubID      uuid.UUID  `gorm:"type:uuid;not null" json:"sub_id"`
-	CommandID  uuid.UUID  `gorm:"type:uuid;not null" json:"command_id"`
-	GroupRefID *uuid.UUID `gorm:"type:uuid" json:"group_ref_id"`
-	CreatedAt  time.Time  `json:"created_at"`
-	UpdatedAt  time.Time  `json:"updated_at"`
-
-	// Relationships
-	Sender  User    `gorm:"foreignKey:SenderID" json:"sender"`
-	Sub     User    `gorm:"foreignKey:SubID" json:"sub"`
-	Command Command `gorm:"foreignKey:CommandID" json:"command"`
-}
-
-// BeforeCreate sets the ID before creating a control app command
-func (cac *ControlAppCmd) BeforeCreate(tx *gorm.DB) error {
-	if cac.ID == uuid.Nil {
-		cac.ID = uuid.New()
-	}
-	return nil
-}
-
-// Group represents user groups
-type Group struct {
+// Tag represents content categories/tags (chastity, feet, general, etc.)
+type Tag struct {
 	ID          uuid.UUID `gorm:"type:uuid;primary_key" json:"id"`
-	Name        string    `gorm:"size:100;not null" json:"name"`
-	Description string    `gorm:"type:text" json:"description"`
-	OwnerID     uuid.UUID `gorm:"type:uuid;not null" json:"owner_id"`
+	Name        string    `gorm:"size:100;not null;unique" json:"name"`            // chastity, feet, general, adult, etc.
+	Description string    `gorm:"type:text" json:"description"`                    // Description of the tag/category
 	CreatedAt   time.Time `json:"created_at"`
 	UpdatedAt   time.Time `json:"updated_at"`
-
-	// Relationships
-	Owner User `gorm:"foreignKey:OwnerID" json:"owner"`
 }
 
-// BeforeCreate sets the ID before creating a group
-func (g *Group) BeforeCreate(tx *gorm.DB) error {
-	if g.ID == uuid.Nil {
-		g.ID = uuid.New()
+// BeforeCreate sets the ID before creating a tag
+func (t *Tag) BeforeCreate(tx *gorm.DB) error {
+	if t.ID == uuid.Nil {
+		t.ID = uuid.New()
 	}
 	return nil
 }
