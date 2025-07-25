@@ -16,7 +16,7 @@ type Docker mg.Namespace
 // Up starts docker services and waits for them to be healthy.
 func (Docker) Up() error {
 	fmt.Println("🐳 Starting Docker services...")
-	if err := sh.Run("docker-compose", "up", "-d", "postgres"); err != nil {
+	if err := sh.Run("docker-compose", "up", "-d", "database"); err != nil {
 		return err
 	}
 
@@ -44,4 +44,29 @@ func (Docker) Clean() error {
 func (Docker) Logs() error {
 	fmt.Println("📋 Docker service logs:")
 	return sh.RunV("docker-compose", "logs", "-f")
+}
+
+// Build builds the production Docker image.
+func (Docker) Build() error {
+	fmt.Println("🐳 Building production Docker image...")
+	return sh.Run("docker", "build", "-f", "docker/Dockerfile.prod", "-t", "controlme-server", ".")
+}
+
+// BuildDev builds the development Docker image.
+func (Docker) BuildDev() error {
+	fmt.Println("🐳 Building development Docker image...")
+	return sh.Run("docker", "build", "-f", "docker/Dockerfile.dev", "-t", "controlme-server:dev", ".")
+}
+
+// Restart restarts Docker services.
+func (Docker) Restart() error {
+	fmt.Println("🔄 Restarting Docker services...")
+	mg.Deps(Docker{}.Down)
+	return Docker{}.Up()
+}
+
+// Status shows the status of Docker services.
+func (Docker) Status() error {
+	fmt.Println("📊 Docker service status:")
+	return sh.RunV("docker-compose", "ps")
 }

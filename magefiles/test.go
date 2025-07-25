@@ -7,7 +7,6 @@ import (
 
 	"github.com/magefile/mage/mg"
 	"github.com/magefile/mage/sh"
-	"github.com/thecontrolapp/controlme-go/internal/services"
 )
 
 // A namespace for test related commands.
@@ -31,39 +30,39 @@ func (Test) API() error {
 	return sh.RunV("go", "test", "-v", "./internal/api/...")
 }
 
-// CreateUser is an example of calling code directly from a mage task.
-func (Test) CreateUser() error {
-	mg.Deps(Docker.Up)
-	fmt.Println("✨ Creating a test user...")
+// Coverage runs tests with coverage reporting.
+func (Test) Coverage() error {
+	fmt.Println("📊 Running tests with coverage...")
+	return sh.RunV("go", "test", "-coverprofile=coverage.out", "./...")
+}
 
-	// This is a simplified example. In a real scenario, you would
-	// properly initialize your services and dependencies.
-	// This also assumes your database connection logic can be
-	// called from here.
-	userService, err := getTestUserService()
-	if err != nil {
-		return fmt.Errorf("failed to get user service: %w", err)
+// CoverageHTML generates HTML coverage report.
+func (Test) CoverageHTML() error {
+	mg.Deps(Test{}.Coverage)
+	fmt.Println("🌐 Generating HTML coverage report...")
+	if err := sh.RunV("go", "tool", "cover", "-html=coverage.out", "-o", "coverage.html"); err != nil {
+		return err
 	}
-
-	user, err := userService.CreateUser(services.CreateUserRequest{
-		LoginName:  "mage-test-user",
-		ScreenName: "Mage Test User",
-		Password:   "password",
-	})
-	if err != nil {
-		return fmt.Errorf("failed to create user: %w", err)
-	}
-
-	fmt.Printf("✅ User created with ID: %s\n", user.ID)
+	fmt.Println("✅ Coverage report generated: coverage.html")
 	return nil
 }
 
-// getTestUserService is a helper to initialize services for testing.
-// This would need to be adapted to your project's structure.
-func getTestUserService() (*services.UserService, error) {
-	// This is where you would put your service initialization logic.
-	// It's separated to show how you might structure it.
-	// You'll need to replace this with your actual database connection
-	// and service setup.
-	return nil, fmt.Errorf("database connection not implemented in magefile")
+// Bench runs benchmark tests.
+func (Test) Bench() error {
+	fmt.Println("⚡ Running benchmark tests...")
+	return sh.RunV("go", "test", "-bench=.", "./...")
+}
+
+// CreateUser creates a test user using the CLI tool.
+func (Test) CreateUser() error {
+	mg.Deps(Docker{}.Up)
+	fmt.Println("👤 Creating test user...")
+	return sh.Run("go", "run", "cmd/tools/create-test-user/main.go")
+}
+
+// CreateCommands creates sample commands using the CLI tool.
+func (Test) CreateCommands() error {
+	mg.Deps(Docker{}.Up)
+	fmt.Println("📝 Creating sample commands...")
+	return sh.Run("go", "run", "cmd/tools/create-commands/main.go")
 }
