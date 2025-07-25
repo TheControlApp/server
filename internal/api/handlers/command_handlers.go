@@ -19,7 +19,7 @@ func NewCommandHandlers(service *services.CommandService) *CommandHandlers {
 // GetPendingCommands gets pending commands for a user
 // GetPendingCommands godoc
 // @Summary      Get pending commands for a user
-// @Description  Retrieves the next pending command for a given user
+// @Description  Retrieves pending commands for a given user
 // @Tags         commands
 // @Accept       json
 // @Produce      json
@@ -42,27 +42,23 @@ func (h *CommandHandlers) GetPendingCommands(c *gin.Context) {
 		return
 	}
 
-	command, err := h.Service.GetNextCommand(userID)
+	commands, err := h.Service.GetPendingCommands(userID)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch commands"})
 		return
 	}
 
-	if command == nil {
-		c.JSON(http.StatusOK, gin.H{"command": nil})
-		return
-	}
-
-	c.JSON(http.StatusOK, gin.H{"command": command})
+	c.JSON(http.StatusOK, gin.H{"commands": commands})
 }
 
 // CompleteCommand marks a command as completed
 // CompleteCommand godoc
 // @Summary      Mark a command as completed
-// @Description  Marks the oldest pending command for a user as completed
+// @Description  Marks a specific command as completed
 // @Tags         commands
 // @Accept       json
 // @Produce      json
+// @Param        command_id query string true "Command ID"
 // @Param        user_id query string true "User ID"
 // @Success      200  {object}  map[string]interface{}
 // @Failure      400  {object}  map[string]interface{}
@@ -76,13 +72,25 @@ func (h *CommandHandlers) CompleteCommand(c *gin.Context) {
 		return
 	}
 
+	commandIDStr := c.Query("command_id")
+	if commandIDStr == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "command_id required"})
+		return
+	}
+
 	userID, err := uuid.Parse(userIDStr)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid user ID"})
 		return
 	}
 
-	err = h.Service.CompleteCommand(userID)
+	commandID, err := uuid.Parse(commandIDStr)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid command ID"})
+		return
+	}
+
+	err = h.Service.CompleteCommand(commandID, userID)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to complete command"})
 		return

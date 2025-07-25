@@ -54,8 +54,9 @@ func runMigrations(db *gorm.DB) error {
 	if err := db.AutoMigrate(
 		&models.User{},
 		&models.Command{},
-		&models.ControlAppCmd{},
-		&models.ChatLog{},
+		&models.Tag{},
+		&models.Block{},
+		&models.Report{},
 	); err != nil {
 		return fmt.Errorf("migration failed: %w", err)
 	}
