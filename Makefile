@@ -37,12 +37,15 @@ swagger:
 swagger-serve: swagger run
 
 # Install swagger tool
-install-swagger:
+install-tools:
 	go install github.com/swaggo/swag/cmd/swag@latest
-
+	go install github.com/magefile/mage@latest
 # Docker commands
 docker-up:
 	docker-compose up --build
+	@echo "🌐 Services running:"
+	@echo "  - API Server: http://localhost:8080"
+	@echo "  - Built-in Swagger: http://localhost:8080/swagger/index.html"
 
 docker-down:
 	docker-compose down -v

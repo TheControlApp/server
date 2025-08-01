@@ -94,10 +94,26 @@ make test          # Run all tests
 make lint          # Run code linter
 make fmt           # Format code
 make clean         # Clean build artifacts
-make docker-up     # Start Docker services
+make docker-up     # Start Docker services (includes Swagger UI)
 make docker-down   # Stop Docker services
 make seed          # Run database seed data
+make swagger       # Generate Swagger documentation
+make swagger-serve # Generate docs and start server
 ```
+
+### Docker Services
+
+The Docker Compose setup includes:
+- **PostgreSQL Database** (port 5432)
+- **Go Server** with hot reload (port 8080)
+- **Swagger UI** for API documentation (port 8081)
+- **Nginx** reverse proxy for production (port 80/443)
+
+#### Access Points
+- **API Server**: http://localhost:8080
+- **Built-in Swagger**: http://localhost:8080/swagger/index.html
+- **Dedicated Swagger UI**: http://localhost:8081
+- **Health Check**: http://localhost:8080/health
 
 ### Configuration
 
