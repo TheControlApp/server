@@ -26,7 +26,7 @@ type RegisterRequest struct {
 	Password    string `json:"password" binding:"required"`
 	ScreenName  string `json:"screen_name" binding:"required"`
 	Email       string `json:"email" binding:"required"`
-	RandomOptIn bool   `json:"random_opt_in" binding:"required"`
+	RandomOptIn bool   `json:"random_opt_in"`
 }
 
 // Login authenticates a user and returns a JWT token

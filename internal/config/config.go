@@ -19,12 +19,14 @@ type Server struct {
 }
 
 type Database struct {
+	Type     string `mapstructure:"type"`      // postgres, sqlite
 	Host     string `mapstructure:"host"`
 	Port     int    `mapstructure:"port"`
 	Name     string `mapstructure:"name"`
 	Username string `mapstructure:"username"`
 	Password string `mapstructure:"password"`
 	SSLMode  string `mapstructure:"sslmode"`
+	Path     string `mapstructure:"path"`      // SQLite database file path
 }
 
 type Auth struct {
@@ -53,23 +55,28 @@ func Load() (*Config, error) {
 	viper.SetDefault("environment", "development")
 	viper.SetDefault("server.port", 8080)
 	viper.SetDefault("server.host", "localhost")
+	viper.SetDefault("database.type", "postgres")
 	viper.SetDefault("database.host", "localhost")
 	viper.SetDefault("database.port", 5432)
 	viper.SetDefault("database.name", "controlme")
 	viper.SetDefault("database.username", "postgres")
 	viper.SetDefault("database.password", "postgres")
 	viper.SetDefault("database.sslmode", "disable")
+	viper.SetDefault("database.path", "./data/controlme.db")
 	viper.SetDefault("auth.jwt_expiration", 86400) // 24 hours
+	viper.SetDefault("auth.jwt_secret", "dev-secret-key-change-in-production")
 
 	// Read environment variables
 	viper.AutomaticEnv()
 
 	// Bind specific environment variables to config keys
+	viper.BindEnv("database.type", "DB_TYPE")
 	viper.BindEnv("database.host", "DB_HOST")
 	viper.BindEnv("database.port", "DB_PORT")
 	viper.BindEnv("database.name", "DB_NAME")
 	viper.BindEnv("database.username", "DB_USER")
 	viper.BindEnv("database.password", "DB_PASSWORD")
+	viper.BindEnv("database.path", "DB_PATH")
 	viper.BindEnv("auth.jwt_secret", "JWT_SECRET")
 
 	if err := viper.ReadInConfig(); err != nil {

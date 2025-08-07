@@ -3,39 +3,51 @@ package database
 import (
 	"fmt"
 	"log"
+	"os"
+	"path/filepath"
 
 	"github.com/thecontrolapp/controlme-go/internal/config"
 	"github.com/thecontrolapp/controlme-go/internal/models"
 	"gorm.io/driver/postgres"
+	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
 	"gorm.io/gorm/logger"
 )
 
 // Initialize sets up the database connection and runs migrations
 func Initialize(cfg *config.Config) (*gorm.DB, error) {
-	// Build connection string
-	dsn := fmt.Sprintf(
-		"host=%s user=%s password=%s dbname=%s port=%d sslmode=%s TimeZone=UTC",
-		cfg.Database.Host,
-		cfg.Database.Username,
-		cfg.Database.Password,
-		cfg.Database.Name,
-		cfg.Database.Port,
-		cfg.Database.SSLMode,
-	)
-
 	// Set log level based on environment
 	logLevel := logger.Info
 	if cfg.Environment == "production" {
 		logLevel = logger.Error
 	}
 
-	// Connect to database
-	db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{
+	gormConfig := &gorm.Config{
 		Logger: logger.Default.LogMode(logLevel),
-	})
-	if err != nil {
-		return nil, fmt.Errorf("failed to connect to database: %w", err)
+	}
+
+	var db *gorm.DB
+	var err error
+
+	// Try PostgreSQL first if configured or requested
+	if cfg.Database.Type == "postgres" {
+		db, err = connectPostgreSQL(cfg, gormConfig)
+		if err != nil {
+			log.Printf("PostgreSQL connection failed: %v", err)
+			log.Println("Falling back to SQLite...")
+			cfg.Database.Type = "sqlite" // Update config for consistent behavior
+		}
+	}
+
+	// Use SQLite if PostgreSQL failed or if explicitly requested
+	if cfg.Database.Type == "sqlite" || db == nil {
+		db, err = connectSQLite(cfg, gormConfig)
+		if err != nil {
+			return nil, fmt.Errorf("failed to connect to SQLite database: %w", err)
+		}
+		log.Println("✓ Using SQLite database")
+	} else {
+		log.Println("✓ Using PostgreSQL database")
 	}
 
 	// Test the connection
@@ -50,21 +62,54 @@ func Initialize(cfg *config.Config) (*gorm.DB, error) {
 	
 	log.Println("✓ Database connection established successfully")
 
-	// Ensure UUID extension is available
-	if err := ensureUUIDExtension(db); err != nil {
-		return nil, fmt.Errorf("failed to setup UUID extension: %w", err)
+	// Ensure required extensions are available (PostgreSQL only)
+	if cfg.Database.Type == "postgres" {
+		if err := ensureExtensions(db); err != nil {
+			return nil, fmt.Errorf("failed to setup database extensions: %w", err)
+		}
 	}
 
-	// Run auto-migration
+	// Run migrations
 	if err := runMigrations(db); err != nil {
 		return nil, fmt.Errorf("failed to run migrations: %w", err)
+	}
+
+	// Configure connection pool
+	if err := configureConnectionPool(sqlDB, cfg); err != nil {
+		return nil, fmt.Errorf("failed to configure connection pool: %w", err)
 	}
 
 	return db, nil
 }
 
-// ensureUUIDExtension ensures that the uuid-ossp extension is available
-func ensureUUIDExtension(db *gorm.DB) error {
+// connectPostgreSQL establishes a PostgreSQL connection
+func connectPostgreSQL(cfg *config.Config, gormConfig *gorm.Config) (*gorm.DB, error) {
+	dsn := fmt.Sprintf(
+		"host=%s user=%s password=%s dbname=%s port=%d sslmode=%s TimeZone=UTC",
+		cfg.Database.Host,
+		cfg.Database.Username,
+		cfg.Database.Password,
+		cfg.Database.Name,
+		cfg.Database.Port,
+		cfg.Database.SSLMode,
+	)
+
+	return gorm.Open(postgres.Open(dsn), gormConfig)
+}
+
+// connectSQLite establishes a SQLite connection
+func connectSQLite(cfg *config.Config, gormConfig *gorm.Config) (*gorm.DB, error) {
+	// Ensure the directory exists
+	dbDir := filepath.Dir(cfg.Database.Path)
+	if err := os.MkdirAll(dbDir, 0755); err != nil {
+		return nil, fmt.Errorf("failed to create database directory: %w", err)
+	}
+
+	return gorm.Open(sqlite.Open(cfg.Database.Path), gormConfig)
+}
+
+// ensureExtensions ensures that required database extensions are available (PostgreSQL only)
+func ensureExtensions(db *gorm.DB) error {
 	log.Println("Ensuring UUID extension is available...")
 	
 	// First check if the extension exists
@@ -84,6 +129,16 @@ func ensureUUIDExtension(db *gorm.DB) error {
 		log.Println("✓ UUID extension already exists")
 	}
 	
+	return nil
+}
+
+// configureConnectionPool configures the database connection pool
+func configureConnectionPool(sqlDB interface{}, cfg *config.Config) error {
+	// Only configure connection pool for databases that support it
+	// SQLite doesn't need connection pooling
+	if cfg.Database.Type == "postgres" {
+		// TODO: Add connection pool configuration if needed
+	}
 	return nil
 }
 
