@@ -18,7 +18,7 @@ import (
 // SetupRoutes configures all the routes for the application
 func SetupRoutes(router *gin.Engine, db *gorm.DB, hub *websocket.Hub, cfg *config.Config) {
 	// Initialize services
-	jwtExpiration := time.Duration(cfg.Auth.JWTExpiration) * time.Hour
+	jwtExpiration := time.Duration(cfg.Auth.JWTExpiration) * time.Second
 	authService := auth.NewAuthService(cfg.Auth.JWTSecret, jwtExpiration)
 	userService := services.NewUserService(db, authService)
 	commandService := services.NewCommandService(db)
@@ -27,7 +27,7 @@ func SetupRoutes(router *gin.Engine, db *gorm.DB, hub *websocket.Hub, cfg *confi
 	userHandlers := handlers.NewUserHandlers(userService)
 	authHandlers := handlers.NewAuthHandlers(userService)
 	commandHandlers := handlers.NewCommandHandlers(commandService)
-	wsHandlers := handlers.NewWebSocketHandlers(hub)
+	wsHandlers := handlers.NewWebSocketHandlers(hub, authService.JWTManager)
 
 	// Health check endpoint
 	// Health godoc

@@ -4,8 +4,8 @@ tmp_dir = "tmp"
 
 [build]
   args_bin = []
-  bin = "./tmp/main"
-  cmd = "go build -ldflags='-s -w' -o ./tmp/main cmd/server/main.go"
+  bin = "./tmp/main.exe"
+  cmd = "go build -ldflags='-s -w' -o ./tmp/main.exe cmd/server/main.go"
   delay = 500
   exclude_dir = ["assets", "tmp", "vendor", "testdata", "docker", "bin", "data", ".git", "node_modules", "docs"]
   exclude_file = ["*.md", "*.txt", "*.log", "*.sql", "docker-compose*.yml", "Dockerfile*"]

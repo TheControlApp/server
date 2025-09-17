@@ -24,7 +24,16 @@ type Hub struct {
 	unregister chan *Client
 
 	// User connections map for targeted messaging
-	userConnections map[uuid.UUID][]*Client
+	userConnections map[uuid.UUID]map[*Client]bool
+
+	// Token connections map for enforcing one connection per token
+	tokenConnections map[string]*Client
+
+	// Maximum connections per user (0 = unlimited)
+	maxConnectionsPerUser int
+
+	// Message cache for broadcast optimization
+	messageCache map[string][]byte
 }
 
 // Client represents a WebSocket client
@@ -34,6 +43,9 @@ type Client struct {
 
 	// User ID
 	userID uuid.UUID
+
+	// JWT Token used for authentication
+	token string
 
 	// Client type (web, desktop)
 	clientType string
@@ -58,11 +70,14 @@ type Message struct {
 // NewHub creates a new WebSocket hub
 func NewHub() *Hub {
 	return &Hub{
-		clients:         make(map[*Client]bool),
-		broadcast:       make(chan []byte),
-		register:        make(chan *Client),
-		unregister:      make(chan *Client),
-		userConnections: make(map[uuid.UUID][]*Client),
+		clients:               make(map[*Client]bool),
+		broadcast:             make(chan []byte),
+		register:              make(chan *Client),
+		unregister:            make(chan *Client),
+		userConnections:       make(map[uuid.UUID]map[*Client]bool),
+		tokenConnections:      make(map[string]*Client),
+		maxConnectionsPerUser: 0, // 0 = unlimited, can be configured
+		messageCache:          make(map[string][]byte),
 	}
 }
 
@@ -71,13 +86,54 @@ func (h *Hub) Run() {
 	for {
 		select {
 		case client := <-h.register:
+			// Check if token already has an active connection
+			if existingClient, exists := h.tokenConnections[client.token]; exists {
+				// Close the existing connection
+				logrus.WithFields(logrus.Fields{
+					"user_id":         existingClient.userID,
+					"client_type":     existingClient.clientType,
+					"new_user_id":     client.userID,
+					"new_client_type": client.clientType,
+				}).Info("Replacing existing WebSocket connection for token")
+
+				// Remove existing client
+				delete(h.clients, existingClient)
+				close(existingClient.send)
+				existingClient.conn.Close()
+
+				// Remove from user connections
+				if connections, userExists := h.userConnections[existingClient.userID]; userExists {
+					delete(connections, existingClient)
+					if len(connections) == 0 {
+						delete(h.userConnections, existingClient.userID)
+					}
+				}
+			}
+
+			// Check connection limits per user
+			if h.maxConnectionsPerUser > 0 {
+				if connections, exists := h.userConnections[client.userID]; exists {
+					if len(connections) >= h.maxConnectionsPerUser {
+						logrus.WithFields(logrus.Fields{
+							"user_id":     client.userID,
+							"max_allowed": h.maxConnectionsPerUser,
+						}).Warn("Maximum connections per user exceeded")
+						close(client.send)
+						client.conn.Close()
+						continue
+					}
+				}
+			}
+
+			// Register the new client
 			h.clients[client] = true
+			h.tokenConnections[client.token] = client
 
 			// Add to user connections
 			if _, exists := h.userConnections[client.userID]; !exists {
-				h.userConnections[client.userID] = []*Client{}
+				h.userConnections[client.userID] = make(map[*Client]bool)
 			}
-			h.userConnections[client.userID] = append(h.userConnections[client.userID], client)
+			h.userConnections[client.userID][client] = true
 
 			logrus.WithFields(logrus.Fields{
 				"user_id":       client.userID,
@@ -90,16 +146,14 @@ func (h *Hub) Run() {
 				delete(h.clients, client)
 				close(client.send)
 
+				// Remove from token connections
+				delete(h.tokenConnections, client.token)
+
 				// Remove from user connections
 				if connections, exists := h.userConnections[client.userID]; exists {
-					for i, conn := range connections {
-						if conn == client {
-							h.userConnections[client.userID] = append(connections[:i], connections[i+1:]...)
-							break
-						}
-					}
+					delete(connections, client)
 					// Remove user from map if no more connections
-					if len(h.userConnections[client.userID]) == 0 {
+					if len(connections) == 0 {
 						delete(h.userConnections, client.userID)
 					}
 				}
@@ -133,13 +187,18 @@ func (h *Hub) SendToUser(userID uuid.UUID, message Message) {
 	}
 
 	if connections, exists := h.userConnections[userID]; exists {
-		for _, client := range connections {
+		for client := range connections {
 			select {
 			case client.send <- data:
 			default:
 				close(client.send)
 				delete(h.clients, client)
+				delete(connections, client)
 			}
+		}
+		// Clean up empty connection maps
+		if len(connections) == 0 {
+			delete(h.userConnections, userID)
 		}
 	}
 }
@@ -153,15 +212,20 @@ func (h *Hub) SendToUserByType(userID uuid.UUID, clientType string, message Mess
 	}
 
 	if connections, exists := h.userConnections[userID]; exists {
-		for _, client := range connections {
+		for client := range connections {
 			if client.clientType == clientType {
 				select {
 				case client.send <- data:
 				default:
 					close(client.send)
 					delete(h.clients, client)
+					delete(connections, client)
 				}
 			}
+		}
+		// Clean up empty connection maps
+		if len(connections) == 0 {
+			delete(h.userConnections, userID)
 		}
 	}
 }
@@ -198,4 +262,128 @@ func (h *Hub) GetUserConnections(userID uuid.UUID) int {
 		return len(connections)
 	}
 	return 0
+}
+
+// NewClient creates a new WebSocket client with authentication
+func NewClient(conn *websocket.Conn, userID uuid.UUID, token string, clientType string, hub *Hub) *Client {
+	return &Client{
+		conn:       conn,
+		userID:     userID,
+		token:      token,
+		clientType: clientType,
+		send:       make(chan []byte, 256),
+		hub:        hub,
+	}
+}
+
+// RegisterClient registers a new authenticated client with the hub
+func (h *Hub) RegisterClient(client *Client) {
+	h.register <- client
+}
+
+// SetMaxConnectionsPerUser sets the maximum number of connections allowed per user
+func (h *Hub) SetMaxConnectionsPerUser(max int) {
+	h.maxConnectionsPerUser = max
+}
+
+// GetStats returns hub statistics
+func (h *Hub) GetStats() map[string]interface{} {
+	return map[string]interface{}{
+		"total_clients":     len(h.clients),
+		"total_users":       len(h.userConnections),
+		"active_tokens":     len(h.tokenConnections),
+		"max_per_user":      h.maxConnectionsPerUser,
+		"message_cache_size": len(h.messageCache),
+	}
+}
+
+// CleanupStaleConnections removes connections that are no longer valid
+func (h *Hub) CleanupStaleConnections() {
+	for client := range h.clients {
+		// Send a ping to test if connection is alive
+		if err := client.conn.WriteMessage(websocket.PingMessage, nil); err != nil {
+			h.unregister <- client
+		}
+	}
+}
+
+// WritePump pumps messages from the hub to the websocket connection
+func (c *Client) WritePump() {
+	const (
+		writeWait      = 10 * time.Second    // Time allowed to write a message to peer
+		pongWait       = 60 * time.Second    // Time allowed to read the next pong message from peer
+		pingPeriod     = (pongWait * 9) / 10 // Send pings to peer with this period. Must be less than pongWait
+	)
+
+	ticker := time.NewTicker(pingPeriod)
+	defer func() {
+		ticker.Stop()
+		c.conn.Close()
+	}()
+
+	for {
+		select {
+		case message, ok := <-c.send:
+			c.conn.SetWriteDeadline(time.Now().Add(writeWait))
+			if !ok {
+				// The hub closed the channel
+				c.conn.WriteMessage(websocket.CloseMessage, []byte{})
+				return
+			}
+
+			if err := c.conn.WriteMessage(websocket.TextMessage, message); err != nil {
+				logrus.WithError(err).Error("Failed to write message to WebSocket")
+				return
+			}
+
+		case <-ticker.C:
+			c.conn.SetWriteDeadline(time.Now().Add(writeWait))
+			if err := c.conn.WriteMessage(websocket.PingMessage, nil); err != nil {
+				logrus.WithError(err).Debug("Failed to send ping message")
+				return
+			}
+		}
+	}
+}
+
+// ReadPump pumps messages from the websocket connection to the hub
+func (c *Client) ReadPump() {
+	defer func() {
+		c.hub.unregister <- c
+		c.conn.Close()
+	}()
+
+	// Configure connection timeouts and ping/pong handling
+	const (
+		writeWait      = 10 * time.Second    // Time allowed to write a message to peer
+		pongWait       = 60 * time.Second    // Time allowed to read the next pong message from peer
+		pingPeriod     = (pongWait * 9) / 10 // Send pings to peer with this period. Must be less than pongWait
+		maxMessageSize = 512                 // Maximum message size allowed from peer
+	)
+
+	c.conn.SetReadLimit(maxMessageSize)
+	c.conn.SetReadDeadline(time.Now().Add(pongWait))
+	c.conn.SetPongHandler(func(string) error {
+		c.conn.SetReadDeadline(time.Now().Add(pongWait))
+		return nil
+	})
+
+	for {
+		_, message, err := c.conn.ReadMessage()
+		if err != nil {
+			if websocket.IsUnexpectedCloseError(err, websocket.CloseGoingAway, websocket.CloseAbnormalClosure) {
+				logrus.WithError(err).Error("WebSocket error")
+			}
+			break
+		}
+
+		// Handle incoming messages (TODO: implement message handling)
+		logrus.WithFields(logrus.Fields{
+			"user_id": c.userID,
+			"message": string(message),
+		}).Debug("Received WebSocket message")
+
+		// Echo message back for now (TODO: implement proper message routing)
+		c.send <- message
+	}
 }

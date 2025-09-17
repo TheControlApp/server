@@ -63,7 +63,7 @@ func Load() (*Config, error) {
 	viper.SetDefault("database.password", "postgres")
 	viper.SetDefault("database.sslmode", "disable")
 	viper.SetDefault("database.path", "./data/controlme.db")
-	viper.SetDefault("auth.jwt_expiration", 86400) // 24 hours
+	viper.SetDefault("auth.jwt_expiration", 604800) // 1 week (7 days)
 	viper.SetDefault("auth.jwt_secret", "dev-secret-key-change-in-production")
 
 	// Read environment variables
