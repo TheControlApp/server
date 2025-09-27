@@ -4,11 +4,27 @@
 Real-time command delivery platform for desktop applications. Users send commands with instructions to other users via WebSocket connections.
 
 ## Quick Start
+
+### 🚀 Development Setup
+```bash
+# Install dependencies
+go mod download
+
+# Run with hot reload
+air
+
+# Or run directly  
+go run cmd/server/main.go
+```
+
+### 🐳 Production Setup
 ```bash
 docker-compose up
 ```
-Server: http://localhost:8080  
-WebSocket: ws://localhost:8080/api/ws  
+
+**Server:** http://localhost:8080  
+**WebSocket:** ws://localhost:8080/ws/client  
+**API Docs:** http://localhost:8080/swagger/index.html  
 
 ## Core Concepts
 - **Commands** - JSON messages with instruction arrays
@@ -17,12 +33,55 @@ WebSocket: ws://localhost:8080/api/ws
 - **WebSocket First** - Primary communication method
 
 ## Documentation
-- **[REST API](./api/rest.md)** - Authentication and file endpoints
-- **[WebSocket API](./api/websocket.md)** - Real-time messaging
-- **[Instructions](./api/instructions.md)** - Command instruction types
-- **[C# Client](./client/csharp.md)** - Desktop integration guide
+
+### 📚 API References
+- **[REST API](./api/rest.md)** - Authentication, users, and command endpoints with code examples
+- **[WebSocket API](./api/websocket.md)** - Real-time messaging protocol and client implementation guide
+- **[API Errors](./api/errors.md)** - Error codes and handling
+- **[Swagger Documentation](./swagger/)** - Interactive API explorer
+
+### 🛠️ Client Development  
+- **[Standard Command Types](./standards/command_types.md)** - Official command specifications for client compatibility
+- **[Mini Client Example](../client/mini-client.html)** - Complete working HTML/JavaScript client
+- **[Implementation Examples](./examples/)** - Sample requests and responses
+
+### 🏗️ Server Implementation
+- **[Database Schema](./database/schema.md)** - Data models and relationships  
+- **[Instructions](./api/instructions.md)** - Legacy instruction types
+- **[WebSocket Hub](../internal/websocket/hub.go)** - Connection management implementation
 
 ## Basic Command Example
+
+### Standard Command (New Format)
+```json
+{
+  "type": "command",
+  "id": "550e8400-e29b-41d4-a716-446655440000",
+  "timestamp": "2025-09-16T12:00:00Z",
+  "from": "sender_user_id",
+  "to": "receiver_user_id", 
+  "data": {
+    "command_type": "std_popup_text",
+    "payload": {
+      "title": "Hello!",
+      "message": "This is a standard popup message",
+      "buttons": [
+        {
+          "id": "ok",
+          "text": "OK", 
+          "style": "primary"
+        }
+      ]
+    },
+    "metadata": {
+      "priority": "normal",
+      "expires_at": "2025-09-16T13:00:00Z"
+    }
+  }
+}
+```
+
+### Legacy Command (Deprecated)
 ```json
 {
   "type": "send_command", 
@@ -40,3 +99,5 @@ WebSocket: ws://localhost:8080/api/ws
   }
 }
 ```
+
+See [Standard Command Types](./standards/command_types.md) for complete specifications.

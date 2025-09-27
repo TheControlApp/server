@@ -1,303 +1,545 @@
 # WebSocket API
 
+**🔗 Code References:**
+- [WebSocket Hub Implementation](../../internal/websocket/hub.go) - Connection management and message routing
+- [WebSocket Handlers](../../internal/api/handlers/websocket_handlers.go) - Connection setup and authentication
+- [API Routes](../../internal/api/routes/routes.go) - WebSocket endpoint definitions
+- [Mini Client Example](../../client/mini-client.html) - Complete working implementation
+
 ## Connection
+
+**Endpoints:** (defined in [routes.go](../../internal/api/routes/routes.go))
 ```
-WS /api/ws
-Authorization: Bearer <jwt_token> (header or query param)
+ws://localhost:8080/ws/client   (for desktop clients)
+ws://localhost:8080/ws/web      (for web clients)
 ```
 
+**Authentication Methods:**
+1. **Authorization Header** (preferred):
+   ```
+   Authorization: Bearer <jwt_token>
+   ```
+2. **Query Parameter** (fallback):
+   ```
+   ?token=<jwt_token>
+   ```
+
+**Implementation:** `HandleClientWebSocket()` and `HandleWebWebSocket()` in [websocket_handlers.go](../../internal/api/handlers/websocket_handlers.go)
+
+**Security Features:**
+- Origin validation for allowed domains (`localhost:3000`, `localhost:8080`, etc.)
+- JWT token validation using the auth service
+- One connection per JWT token enforcement via `tokenConnections` map
+- Automatic client cleanup on disconnect
+
 ## Message Format
-All messages are JSON:
+
+All messages use the standard JSON envelope format defined in [hub.go](../../internal/websocket/hub.go):
+
+```go
+type Message struct {
+	Type      string      `json:"type"`
+	ID        string      `json:"id"`
+	Timestamp time.Time   `json:"timestamp"`
+	From      uuid.UUID   `json:"from"`
+	To        uuid.UUID   `json:"to"`
+	Data      interface{} `json:"data"`
+}
+```
+
+**JSON Example:**
 ```json
 {
-  "type": "message_type",
-  "data": { }
+  "type": "command",
+  "id": "550e8400-e29b-41d4-a716-446655440001",
+  "timestamp": "2025-09-16T12:00:00Z",
+  "from": "sender_user_id",
+  "to": "receiver_user_id",
+  "data": {
+    "command_type": "std_popup_text",
+    "payload": { /* command-specific data */ }
+  }
 }
 ```
 
 ## Message Types
 
-### Receive Commands (Server → Client)
+### 1. Command Messages (Server → Client)
+
+Server sends commands to be executed by the client:
+
 ```json
 {
   "type": "command",
+  "id": "550e8400-e29b-41d4-a716-446655440001",
+  "timestamp": "2025-09-16T12:00:00Z",
+  "from": "sender_user_id",
+  "to": "receiver_user_id",
   "data": {
-    "id": "uuid",
-    "instructions": [
-      {
-        "type": "popup-msg",
-        "content": {
-          "body": "Hello!",
-          "button": "OK"
+    "command_type": "std_popup_text",
+    "payload": {
+      "title": "Daily Check-in",
+      "message": "How are you feeling today?",
+      "buttons": [
+        {
+          "id": "good",
+          "text": "Good",
+          "style": "primary"
+        },
+        {
+          "id": "bad",
+          "text": "Not Great",
+          "style": "secondary"
         }
-      }
-    ],
-    "sender": "username",
-    "receiver": "you",
-    "tags": ["general"]
+      ]
+    },
+    "metadata": {
+      "priority": "normal",
+      "expires_at": "2025-09-16T13:00:00Z"
+    }
   }
 }
 ```
 
-### Send Commands (Client → Server)  
+### 2. Acknowledgment Messages (Client → Server)
+
+Client confirms command completion:
+
 ```json
 {
-  "type": "send_command",
+  "type": "ack",
+  "id": "response_uuid",
+  "timestamp": "2025-09-16T12:00:30Z",
+  "from": "receiver_user_id",
+  "to": "sender_user_id",
   "data": {
-    "instructions": [
-      {
-        "type": "popup-msg",
-        "content": {
-          "body": "Message",
-          "button": "OK"
-        }
-      }
-    ],
-    "receiver": "username",
-    "tags": ["general"]
+    "original_message_id": "550e8400-e29b-41d4-a716-446655440001",
+    "status": "completed",
+    "response": {
+      "action": "good",
+      "completion_time": "2025-09-16T12:00:25Z"
+    }
   }
 }
 ```
 
-### Command Status Updates
+### 3. Heartbeat Messages
+
+Connection keep-alive (handled automatically by the hub):
+
 ```json
 {
-  "type": "command_status",
-  "data": {
-    "command_id": "uuid",
-    "status": "received|completed|failed"
-  }
+  "type": "ping",
+  "id": "ping_uuid",
+  "timestamp": "2025-09-16T12:00:00Z"
+}
+
+{
+  "type": "pong", 
+  "id": "pong_uuid",
+  "timestamp": "2025-09-16T12:00:00Z"
 }
 ```
 
-### Heartbeat
-```json
-{
-  "type": "heartbeat",
-  "timestamp": "2024-01-01T12:00:00Z"
-}
-```
+### 4. Error Messages
 
-### Error Messages
+Server error notifications:
+
 ```json
 {
   "type": "error",
-  "error": "error_code",
-  "message": "Description"
+  "id": "error_uuid",
+  "timestamp": "2025-09-16T12:00:00Z",
+  "data": {
+    "error_code": "authentication_failed",
+    "message": "Invalid or expired JWT token",
+    "details": {}
+  }
 }
 ```
 
-## Common Errors
-- `authentication_failed` - Invalid token
-- `rate_limit_exceeded` - Too many commands
-- `user_not_found` - Invalid receiver
-- `command_blocked` - Content filtered
-        }
+## Standard Command Types
+
+**Note:** These are proposed standard command types for client compatibility. The actual command handling depends on client implementation.
+
+### std_popup_url
+Opens a URL in the default browser:
+```json
+{
+  "command_type": "std_popup_url",
+  "payload": {
+    "url": "https://example.com",
+    "title": "Check this out!",
+    "description": "Optional link description"
+  }
+}
+```
+
+### std_popup_video  
+Displays a video in a popup player:
+```json
+{
+  "command_type": "std_popup_video",
+  "payload": {
+    "video_source": {
+      "type": "url",
+      "url": "https://example.com/video.mp4"
+    },
+    "title": "Video Title",
+    "controls": {
+      "autoplay": false,
+      "loop": false,
+      "volume": 0.8
+    }
+  }
+}
+```
+
+### std_popup_text
+Shows a text dialog with optional buttons:
+```json
+{
+  "command_type": "std_popup_text", 
+  "payload": {
+    "title": "Confirmation",
+    "message": "Are you ready to proceed?",
+    "buttons": [
+      {
+        "id": "yes",
+        "text": "Yes, Continue",
+        "style": "primary"
       },
       {
-        "type": "download-file",
-        "content": {
-          "file_hash": "abc123def456...",
-          "file_name": "task.pdf"
-        }
+        "id": "no",
+        "text": "Not Yet",
+        "style": "secondary"
       }
-    ],
-    "sender": "master123",
-    "receiver": "user456", 
-    "tags": ["chastity", "daily"],
-    "status": "pending",
-    "created_at": "2025-07-24T15:30:00Z"
+    ]
   }
 }
 ```
 
-### 2. Command Sending (Client → Server)
-
-Send commands to specific users:
-
+### std_download_file
+Downloads a file via API reference:
 ```json
 {
-  "type": "send_command",
-  "data": {
-    "instructions": [
-      {
-        "type": "popup-msg",
-        "content": {
-          "body": "Take a 15-minute break",
-          "button": "Done"
-        }
-      }
-    ],
-    "receiver": "user456",
-    "tags": ["general", "break"]
+  "command_type": "std_download_file",
+  "payload": {
+    "file_reference": {
+      "file_id": "file_uuid",
+      "access_token": "temp_token",
+      "api_endpoint": "/api/files/download"
+    },
+    "filename": "document.pdf",
+    "file_size": 1024000,
+    "mime_type": "application/pdf"
   }
 }
 ```
-
-### 3. Broadcast Commands
-
-Send commands to users subscribed to specific tags:
-
-```json
-{
-  "type": "send_command",
-  "data": {
-    "instructions": [
-      {
-        "type": "announcement",
-        "content": {
-          "title": "System Maintenance",
-          "body": "Server will be down for 10 minutes at 3 PM",
-          "priority": "high"
-        }
-      }
-    ],
-    "tags": ["announcements", "system"]
-  }
-}
-```
-
-### 4. Command Status Updates
-
-Update command completion status:
-
-```json
-{
-  "type": "command_status",
-  "data": {
-    "command_id": "550e8400-e29b-41d4-a716-446655440001",
-    "status": "completed",
-    "completed_at": "2025-07-24T15:45:00Z"
-  }
-}
-```
-
-### 5. Heartbeat
-
-Maintain connection with periodic heartbeats:
-
-```json
-{
-  "type": "heartbeat",
-  "timestamp": "2025-07-24T15:30:00Z"
-}
-```
-
-## Connection Management
-
-### Heartbeat System
-- **Interval**: 30 seconds
-- **Timeout**: 3 missed heartbeats
-- **Client**: Must respond to server heartbeats
-- **Server**: Automatically disconnects inactive connections
-
-### Reconnection Strategy
-```javascript
-function connectWebSocket() {
-  const ws = new WebSocket('ws://localhost:8080/api/ws?token=' + authToken);
-  
-  ws.onopen = () => {
-    console.log('Connected');
-    heartbeatInterval = setInterval(() => {
-      ws.send(JSON.stringify({
-        type: 'heartbeat',
-        timestamp: new Date().toISOString()
-      }));
-    }, 30000);
-  };
-  
-  ws.onclose = (event) => {
-    clearInterval(heartbeatInterval);
-    if (event.code !== 1000) {
-      // Reconnect after 5 seconds
-      setTimeout(connectWebSocket, 5000);
-    }
-  };
-}
-```
-
-### Queue Delivery
-- Commands sent while offline are queued
-- Delivered immediately upon reconnection
-- 2-week retention period for undelivered commands
 
 ## Error Handling
 
-### Error Message Format
-```json
-{
-  "type": "error",
-  "error": "error_code",
-  "message": "Human-readable error message",
-  "command_id": "uuid" // optional, if related to specific command
+### Common Error Codes
+- `authentication_failed` - Invalid/expired JWT token
+- `user_not_found` - Target user does not exist  
+- `rate_limit_exceeded` - Too many messages sent
+- `invalid_message_format` - Malformed JSON message
+- `command_not_supported` - Unknown command type
+
+### Connection Issues
+- **Invalid Token:** Connection immediately closed with error
+- **Origin Validation:** Non-allowed origins are rejected
+- **Duplicate Connection:** New connection replaces existing one for same token
+
+## Connection Management
+
+### Authentication Flow
+1. Connect to WebSocket endpoint with JWT token
+2. Server validates token and user credentials
+3. Client registered in hub with user ID and token
+4. Begin message exchange
+
+### Connection Limits
+- **One connection per JWT token** (enforced by hub)
+- **Automatic cleanup** of stale connections  
+- **Origin validation** for security
+
+### Heartbeat System
+Connection health is maintained automatically by the WebSocket implementation. No manual ping/pong required.
+
+## 🛠️ Client Implementation Guide
+
+### Basic Connection Setup
+
+#### JavaScript Implementation
+```javascript
+class ControlMeClient {
+  constructor(token, serverUrl = 'ws://localhost:8080') {
+    this.token = token;
+    this.serverUrl = serverUrl;
+    this.ws = null;
+    this.userId = null;
+  }
+  
+  connect() {
+    // Use Authorization header for token
+    this.ws = new WebSocket(`${this.serverUrl}/ws/client`, [], {
+      headers: {
+        'Authorization': `Bearer ${this.token}`
+      }
+    });
+    
+    // Or use query parameter as fallback
+    // this.ws = new WebSocket(`${this.serverUrl}/ws/client?token=${this.token}`);
+    
+    this.ws.onopen = () => {
+      console.log('Connected to ControlMe server');
+    };
+    
+    this.ws.onmessage = (event) => {
+      const message = JSON.parse(event.data);
+      this.handleMessage(message);
+    };
+    
+    this.ws.onclose = (event) => {
+      console.log('Disconnected from server, code:', event.code);
+    };
+    
+    this.ws.onerror = (error) => {
+      console.error('WebSocket error:', error);
+    };
+  }
+  
+  handleMessage(message) {
+    switch(message.type) {
+      case 'command':
+        this.executeCommand(message);
+        break;
+      case 'error':
+        console.error('Server error:', message.data);
+        break;
+      default:
+        console.log('Unknown message type:', message.type);
+    }
+  }
+  
+  executeCommand(message) {
+    const { command_type, payload } = message.data;
+    
+    switch(command_type) {
+      case 'std_popup_text':
+        this.showTextPopup(payload, message.id);
+        break;
+      case 'std_popup_url':
+        window.open(payload.url, '_blank');
+        this.sendAck(message.id, 'completed', { action: 'opened' });
+        break;
+      case 'std_popup_video':
+        this.showVideoPopup(payload, message.id);
+        break;
+      case 'std_download_file':
+        this.initiateDownload(payload, message.id);
+        break;
+      default:
+        console.log(`Unsupported command type: ${command_type}`);
+        this.sendAck(message.id, 'failed', { error: 'Unsupported command' });
+    }
+  }
+  
+  showTextPopup(payload, messageId) {
+    const result = confirm(`${payload.title}\n\n${payload.message}`);
+    this.sendAck(messageId, 'completed', { 
+      action: result ? 'accepted' : 'declined' 
+    });
+  }
+  
+  sendAck(originalId, status, response = {}) {
+    const ack = {
+      type: 'ack',
+      id: this.generateUUID(),
+      timestamp: new Date().toISOString(),
+      from: this.userId,
+      to: null, // Server will route correctly
+      data: {
+        original_message_id: originalId,
+        status: status,
+        response: {
+          ...response,
+          completion_time: new Date().toISOString()
+        }
+      }
+    };
+    
+    this.ws.send(JSON.stringify(ack));
+  }
+  
+  generateUUID() {
+    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+      const r = Math.random() * 16 | 0;
+      const v = c == 'x' ? r : (r & 0x3 | 0x8);
+      return v.toString(16);
+    });
+  }
 }
+
+// Usage
+const client = new ControlMeClient('your_jwt_token_here');
+client.connect();
 ```
 
-### Common Errors
-```json
-{
-  "type": "error",
-  "error": "authentication_failed",
-  "message": "Invalid or expired token"
-}
+#### Python Implementation
+```python
+import asyncio
+import websockets
+import json
+import uuid
+from datetime import datetime
 
-{
-  "type": "error",
-  "error": "command_failed",
-  "message": "Unable to deliver command to target user",
-  "command_id": "550e8400-e29b-41d4-a716-446655440001"
-}
+class ControlMeClient:
+    def __init__(self, token, server_url="ws://localhost:8080"):
+        self.token = token
+        self.server_url = server_url
+        self.websocket = None
+        self.user_id = None
+    
+    async def connect(self):
+        uri = f"{self.server_url}/ws/client"
+        headers = {"Authorization": f"Bearer {self.token}"}
+        
+        try:
+            self.websocket = await websockets.connect(uri, extra_headers=headers)
+            print("Connected to ControlMe server")
+            await self.listen()
+        except Exception as e:
+            print(f"Connection error: {e}")
+    
+    async def listen(self):
+        try:
+            async for message in self.websocket:
+                data = json.loads(message)
+                await self.handle_message(data)
+        except websockets.exceptions.ConnectionClosed:
+            print("Connection closed")
+        except Exception as e:
+            print(f"Error listening: {e}")
+    
+    async def handle_message(self, message):
+        if message['type'] == 'command':
+            await self.execute_command(message)
+        elif message['type'] == 'error':
+            print(f"Server error: {message['data']}")
+    
+    async def execute_command(self, message):
+        command_type = message['data']['command_type']
+        payload = message['data']['payload']
+        
+        try:
+            if command_type == 'std_popup_url':
+                import webbrowser
+                webbrowser.open(payload['url'])
+                await self.send_ack(message['id'], 'completed', {'action': 'opened'})
+            
+            elif command_type == 'std_popup_text':
+                print(f"{payload['title']}: {payload['message']}")
+                response = input("Response (y/n): ").lower() == 'y'
+                await self.send_ack(message['id'], 'completed', {
+                    'action': 'accepted' if response else 'declined'
+                })
+            
+            else:
+                print(f"Unsupported command type: {command_type}")
+                await self.send_ack(message['id'], 'failed', {
+                    'error': 'Unsupported command type'
+                })
+                
+        except Exception as e:
+            await self.send_ack(message['id'], 'failed', {'error': str(e)})
+    
+    async def send_ack(self, original_id, status, response=None):
+        ack_message = {
+            'type': 'ack',
+            'id': str(uuid.uuid4()),
+            'timestamp': datetime.utcnow().isoformat() + 'Z',
+            'from': self.user_id,
+            'to': None,
+            'data': {
+                'original_message_id': original_id,
+                'status': status,
+                'response': {
+                    **(response or {}),
+                    'completion_time': datetime.utcnow().isoformat() + 'Z'
+                }
+            }
+        }
+        
+        await self.websocket.send(json.dumps(ack_message))
 
-{
-  "type": "error",
-  "error": "rate_limit_exceeded",
-  "message": "Too many commands sent. Please wait before sending more."
-}
+# Usage
+async def main():
+    client = ControlMeClient("your_jwt_token_here")
+    await client.connect()
 
-{
-  "type": "error",
-  "error": "user_not_found",
-  "message": "Target user 'username' does not exist"
-}
+if __name__ == "__main__":
+    asyncio.run(main())
 ```
 
-## Broadcasting Rules
+### Authentication Integration
 
-### Direct Messages
-- Commands with `receiver` field go to specific user
-- Sender must not be blocked by receiver
-- Receiver must be online or command is queued
+1. **Get JWT Token:** Use [REST API login](rest.md#authentication)
+2. **Connect WebSocket:** Pass token via Authorization header or query parameter
+3. **Handle Messages:** Process incoming commands and send acknowledgments
 
-### Tag-Based Broadcasting
-- Commands without `receiver` field broadcast to tag subscribers
-- Users control which tags they receive via preferences
-- Multiple tags = command sent to users subscribed to ANY tag
+### Message Flow Example
 
-### Content Filtering
-Available tags for filtering:
-- `general` - Safe-for-work content
-- `adult` - Explicit content  
-- `chastity` - Chastity-related content
-- `feet` - Foot-related content
-- `roleplay` - Roleplay scenarios
-- `humiliation` - Humiliation-based content
-- `public` - Public setting commands
-- `private` - Private/intimate commands
+1. **Client connects** with JWT token
+2. **Server sends command:**
+   ```json
+   {
+     "type": "command",
+     "id": "cmd-123",
+     "timestamp": "2025-09-16T12:00:00Z",
+     "from": "sender_user_id",
+     "to": "your_user_id",
+     "data": {
+       "command_type": "std_popup_text",
+       "payload": {
+         "title": "Hello", 
+         "message": "Click OK to continue"
+       }
+     }
+   }
+   ```
+3. **Client executes** command and shows popup
+4. **Client sends acknowledgment:**
+   ```json
+   {
+     "type": "ack",
+     "id": "ack-456", 
+     "timestamp": "2025-09-16T12:00:05Z",
+     "from": "your_user_id",
+     "to": "sender_user_id",
+     "data": {
+       "original_message_id": "cmd-123",
+       "status": "completed",
+       "response": {
+         "action": "accepted",
+         "completion_time": "2025-09-16T12:00:05Z"
+       }
+     }
+   }
+   ```
 
-## Security Features
+For complete working examples, see [Mini Client](../../client/mini-client.html) which demonstrates all functionality in a single HTML file.
 
-### Authentication
-- JWT token required for all connections
-- Tokens expire after 24 hours
-- Invalid tokens result in immediate disconnection
+## Summary
 
-### Rate Limiting
-- 10 commands per minute per user
-- Burst allowance of 5 additional commands
-- Temporary blocks for abuse
+The ControlMe WebSocket API provides real-time bidirectional communication using:
 
-### Content Moderation
-- File hash scanning for CSAM/malware
-- User reporting system
-- Automatic flagging of suspicious content
-- Admin intervention capabilities
+- **JWT Authentication:** Required for all connections
+- **Standard Message Format:** JSON envelope with type, id, timestamp, from, to, data
+- **Command System:** Server sends commands, client sends acknowledgments  
+- **Standard Command Types:** URL, video, text, and file download commands
+- **Error Handling:** Comprehensive error codes and connection management
+- **Security:** Origin validation, token enforcement, automatic cleanup
+
+See the [Mini Client](../../client/mini-client.html) for a complete working implementation.

@@ -2,12 +2,22 @@
 
 All endpoints require JWT authentication: `Authorization: Bearer <token>`
 
+**🔗 Code References:**
+- [API Routes Definition](../../internal/api/routes/routes.go) - Complete endpoint mapping
+- [Auth Handlers](../../internal/api/handlers/auth_handlers.go) - Authentication implementation
+- [User Handlers](../../internal/api/handlers/user_handlers.go) - User management endpoints
+- [Command Handlers](../../internal/api/handlers/command_handlers.go) - Command API endpoints
+- [Models Definition](../../internal/models/models.go) - Data structures and schemas
+
 ## Authentication
+
+**Implementation:** [Auth Handlers](../../internal/api/handlers/auth_handlers.go)
 
 ### Login
 ```http
 POST /api/v1/auth/login
 ```
+**Implementation:** `Login()` function in auth_handlers.go
 **Body:** 
 ```json
 {
@@ -32,11 +42,12 @@ POST /api/v1/auth/login
 ```http
 POST /api/v1/auth/register
 ```
+**Implementation:** `Register()` function in auth_handlers.go
 **Body:** 
 ```json
 {
   "screen_name": "Display Name",
-  "login_name": "username",
+  "login_name": "username", 
   "email": "user@example.com",
   "password": "password"
 }
@@ -250,6 +261,75 @@ GET /health
 | 403 | Forbidden - Insufficient permissions |
 | 404 | Not Found - Resource does not exist |
 | 413 | Payload Too Large - File size exceeded |
+
+## 🛠️ Client Development Guide
+
+### Getting Started
+1. **Authentication Flow:** Register user → Login → Store JWT token
+2. **API Integration:** Use REST endpoints for user/command management  
+3. **Real-time Communication:** Connect to WebSocket with JWT token
+4. **Command Handling:** Implement handlers for [standard command types](../standards/command_types.md)
+
+### Code Examples
+
+#### JavaScript Authentication
+```javascript
+// Register new user
+const registerResponse = await fetch('/api/v1/auth/register', {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({
+    screen_name: 'Display Name',
+    login_name: 'username',
+    email: 'user@example.com', 
+    password: 'password'
+  })
+});
+
+// Login and get token
+const loginResponse = await fetch('/api/v1/auth/login', {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({
+    login_name: 'username',
+    password: 'password'
+  })
+});
+
+const { token, user } = await loginResponse.json();
+localStorage.setItem('jwt_token', token);
+```
+
+#### Python Authentication
+```python
+import requests
+import json
+
+# Register user
+register_data = {
+    "screen_name": "Display Name",
+    "login_name": "username", 
+    "email": "user@example.com",
+    "password": "password"
+}
+register_response = requests.post('http://localhost:8080/api/v1/auth/register', 
+                                 json=register_data)
+
+# Login and get token
+login_data = {"login_name": "username", "password": "password"}
+login_response = requests.post('http://localhost:8080/api/v1/auth/login', 
+                              json=login_data)
+token = login_response.json()['token']
+
+# Store token for subsequent requests
+headers = {'Authorization': f'Bearer {token}'}
+```
+
+### WebSocket Integration
+See [WebSocket API documentation](websocket.md) for real-time communication setup.
+
+### Complete Example
+For a full working client implementation, see [Mini Client](../../client/mini-client.html) - a complete HTML/JavaScript client that demonstrates all core functionality.
 | 429 | Too Many Requests - Rate limit exceeded |
 | 500 | Internal Server Error - Server error |
 
