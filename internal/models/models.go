@@ -38,14 +38,14 @@ func (u *User) BeforeCreate(tx *gorm.DB) error {
 
 // Command represents a command assignment in the system
 type Command struct {
-	ID           uuid.UUID  `gorm:"type:uuid;primary_key" json:"id"`
-	Instructions string     `gorm:"type:text;not null" json:"instructions"`         // JSON array of instruction objects
-	SenderID     uuid.UUID  `gorm:"type:uuid;not null;constraint:OnDelete:CASCADE" json:"sender_id"` // User who sent the command
-	ReceiverID   *uuid.UUID `gorm:"type:uuid;constraint:OnDelete:SET NULL" json:"receiver_id,omitempty"` // Optional: specific user target
-	Tags         string     `gorm:"type:text" json:"tags"`                          // JSON array of tag names for broadcast
-	Status       string     `gorm:"size:20;default:'pending'" json:"status"`       // pending, delivered, completed
-	CreatedAt    time.Time  `json:"created_at"`
-	UpdatedAt    time.Time  `json:"updated_at"`
+	ID           uuid.UUID     `gorm:"type:uuid;primary_key" json:"id"`
+	Instructions []Instruction `gorm:"serializer:json;type:text;not null" json:"instructions"`              // Array of instruction objects
+	SenderID     uuid.UUID     `gorm:"type:uuid;not null;constraint:OnDelete:CASCADE" json:"sender_id"`     // User who sent the command
+	ReceiverID   *uuid.UUID    `gorm:"type:uuid;constraint:OnDelete:SET NULL" json:"receiver_id,omitempty"` // Optional: specific user target
+	Tags         string        `gorm:"type:text" json:"tags"`                                               // JSON array of tag names for broadcast
+	Status       string        `gorm:"size:20;default:'pending'" json:"status"`                             // pending, delivered, completed
+	CreatedAt    time.Time     `json:"created_at"`
+	UpdatedAt    time.Time     `json:"updated_at"`
 
 	// Relationships - define them explicitly to avoid migration issues
 	Sender   User  `gorm:"foreignKey:SenderID;references:ID" json:"sender"`
@@ -63,8 +63,8 @@ func (c *Command) BeforeCreate(tx *gorm.DB) error {
 // Tag represents content categories/tags (chastity, feet, general, etc.)
 type Tag struct {
 	ID          uuid.UUID `gorm:"type:uuid;primary_key" json:"id"`
-	Name        string    `gorm:"size:100;not null;unique" json:"name"`            // chastity, feet, general, adult, etc.
-	Description string    `gorm:"type:text" json:"description"`                    // Description of the tag/category
+	Name        string    `gorm:"size:100;not null;unique" json:"name"` // chastity, feet, general, adult, etc.
+	Description string    `gorm:"type:text" json:"description"`         // Description of the tag/category
 	CreatedAt   time.Time `json:"created_at"`
 	UpdatedAt   time.Time `json:"updated_at"`
 }

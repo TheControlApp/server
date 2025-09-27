@@ -2,8 +2,8 @@ package models
 
 // Instruction represents a single instruction within a command
 type Instruction struct {
-	Type    string      `json:"type"`    // The instruction type (popup-msg, download-file, etc.)
-	Content interface{} `json:"content"` // Arbitrary struct containing instruction-specific data
+	Type    string      `json:"type"`    // The instruction type (std_popup, std_timer, etc.)
+	Content interface{} `json:"content"` // Arbitrary data - can contain any JSON structure
 }
 
 // InstructionContent represents different types of instruction content,

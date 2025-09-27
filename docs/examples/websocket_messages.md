@@ -586,3 +586,49 @@ async def execute_command(command):
 **Multi-instruction command:** ~4,000 bytes
 
 The WebSocket connection has a maximum message size limit of 512 bytes for client-to-server messages, but server-to-client messages can be larger for command delivery.
+
+## Custom Content Structures
+
+**Important:** The `content` field in each instruction is completely arbitrary and can contain any JSON structure you need. The server acts as a passthrough - it stores and forwards the content without validation or modification.
+
+**Examples of custom content structures:**
+
+```json
+// Gaming instruction
+{
+  "type": "play_game",
+  "content": {
+    "game": "simon_says",
+    "sequence": [1, 3, 2, 4, 1],
+    "timeout_seconds": 30,
+    "reward_points": 100
+  }
+}
+
+// IoT device control
+{
+  "type": "device_control", 
+  "content": {
+    "device_id": "bedroom_lights",
+    "actions": [
+      {"command": "brightness", "value": 75},
+      {"command": "color", "value": "#FF69B4"},
+      {"command": "fade_duration", "value": 2000}
+    ]
+  }
+}
+
+// Media playback
+{
+  "type": "media_command",
+  "content": {
+    "action": "play_playlist",
+    "source": "spotify",
+    "playlist_id": "workout_mix_2024",
+    "shuffle": true,
+    "volume": 0.6
+  }
+}
+```
+
+Clients should implement handling for their supported instruction types and gracefully ignore or report unsupported types.

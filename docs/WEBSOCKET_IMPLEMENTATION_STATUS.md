@@ -12,6 +12,7 @@ This document tracks the current implementation status of WebSocket message hand
 - [x] **Message Envelope Format** - Standard JSON structure defined
 - [x] **Client Type Removal** - Simplified to single endpoint
 - [x] **Documentation** - Complete message format reference
+- [x] **Proper Instruction Types** - Command struct uses []Instruction with GORM JSON serialization
 
 ## 🚧 In Development
 

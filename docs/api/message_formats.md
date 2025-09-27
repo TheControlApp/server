@@ -316,6 +316,16 @@ For multi-instruction commands, clients should track:
 
 Commands contain arrays of instructions. Each instruction has a `type` and `content` structure:
 
+### Instruction Structure
+```json
+{
+  "type": "instruction_type_name",
+  "content": { /* arbitrary JSON data */ }
+}
+```
+
+**Important:** The `content` field is completely flexible and can contain any JSON structure. Different instruction types define their own content schemas, but clients can also define custom instruction types with their own content formats.
+
 ### Standard Instruction Types
 
 #### 1. `std_popup` - Display Modal Dialog
@@ -430,6 +440,96 @@ Commands contain arrays of instructions. Each instruction has a `type` and `cont
     "duration": 0,           // 0 = until dismissed
     "position": "center"     // center, top, bottom
   }
+}
+```
+
+### Custom Instruction Types
+
+Clients can define their own instruction types with arbitrary content structures:
+
+```json
+{
+  "type": "custom_game_command",
+  "content": {
+    "game_id": "tetris",
+    "level": 5,
+    "settings": {
+      "speed": "fast",
+      "music": true,
+      "effects": ["particle", "glow"]
+    },
+    "player_data": {
+      "high_score": 15000,
+      "achievements": ["first_clear", "speed_demon"]
+    }
+  }
+}
+```
+
+```json
+{
+  "type": "hardware_control",
+  "content": {
+    "device": "smart_lights",
+    "action": "color_sequence",
+    "parameters": {
+      "colors": ["#FF0000", "#00FF00", "#0000FF"],
+      "duration_ms": 2000,
+      "repeat": 3,
+      "brightness": 0.8
+    }
+  }
+}
+```
+
+The server will pass through any instruction type and content structure to the client unchanged, allowing for maximum flexibility in client implementations.
+
+## Server Implementation Notes
+
+**Go Server Implementation:**
+
+The Go server uses proper typed structs for instructions:
+
+```go
+type Command struct {
+    ID           uuid.UUID     `json:"id"`
+    Instructions []Instruction `gorm:"serializer:json;type:text" json:"instructions"`
+    // ... other fields
+}
+
+type Instruction struct {
+    Type    string      `json:"type"`    // Instruction type (std_popup, etc.)
+    Content interface{} `json:"content"` // Arbitrary data - any JSON structure
+}
+```
+
+**Key Features:**
+- Go clients can work directly with `[]Instruction` slices - no string parsing needed
+- GORM automatically serializes the slice to/from JSON in the database
+- The `Content` field uses `interface{}` for maximum flexibility
+- Server passes through all instruction types and content unchanged
+- Database storage is handled transparently by GORM's JSON serializer
+
+**Usage in Go:**
+```go
+// Creating commands in Go
+cmd := &models.Command{
+    Instructions: []models.Instruction{
+        {
+            Type: "std_popup",
+            Content: map[string]interface{}{
+                "title": "Hello",
+                "body": "World",
+            },
+        },
+        {
+            Type: "custom_type",
+            Content: YourCustomStruct{
+                Field1: "value1",
+                Field2: 42,
+            },
+        },
+    },
 }
 ```
 
