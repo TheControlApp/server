@@ -1,6 +1,11 @@
 # WebSocket API
 
-**🔗 Code References:**
+**� Quick References:**
+- **[Message Format Reference](./message_formats.md)** - Complete JSON data structures and examples
+- **[WebSocket Message Examples](../examples/websocket_messages.md)** - Real JSON examples with explanations
+- **[JavaScript Client Example](../examples/websocket_client.js)** - Working client implementation
+
+**�🔗 Code References:**
 - [WebSocket Hub Implementation](../../internal/websocket/hub.go) - Connection management and message routing
 - [WebSocket Handlers](../../internal/api/handlers/websocket_handlers.go) - Connection setup and authentication
 - [API Routes](../../internal/api/routes/routes.go) - WebSocket endpoint definitions
@@ -32,6 +37,8 @@ ws://localhost:8080/ws/client   (single endpoint for all clients)
 - Automatic client cleanup on disconnect
 
 ## Message Format
+
+> **⚠️ Implementation Status:** The WebSocket message handling is currently in development. The `ReadPump()` function in `hub.go` currently echoes messages back for testing. Proper message routing and command processing needs to be implemented.
 
 All messages use the standard JSON envelope format defined in [hub.go](../../internal/websocket/hub.go):
 
