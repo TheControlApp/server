@@ -48,14 +48,15 @@ var upgrader = websocket.Upgrader{
 	},
 }
 
-// HandleClientWebSocket handles WebSocket connections for desktop clients
+// HandleClientWebSocket handles WebSocket connections for all clients
 func (h *WebSocketHandlers) HandleClientWebSocket(c *gin.Context) {
-	h.handleWebSocketConnection(c, "desktop")
-}
-
-// HandleWebWebSocket handles WebSocket connections for web clients
-func (h *WebSocketHandlers) HandleWebWebSocket(c *gin.Context) {
-	h.handleWebSocketConnection(c, "web")
+	// Determine client type from User-Agent or default to "client"
+	clientType := "client"
+	userAgent := c.GetHeader("User-Agent")
+	if strings.Contains(userAgent, "Mozilla") || strings.Contains(userAgent, "Chrome") || strings.Contains(userAgent, "Safari") {
+		clientType = "web"
+	}
+	h.handleWebSocketConnection(c, clientType)
 }
 
 // handleWebSocketConnection handles the WebSocket upgrade and authentication

@@ -74,7 +74,6 @@ func SetupRoutes(router *gin.Engine, db *gorm.DB, hub *websocket.Hub, cfg *confi
 		v1.POST("/users", userHandlers.CreateUser)
 	}
 
-	// WebSocket routes
+	// WebSocket route - single endpoint for all clients
 	router.GET("/ws/client", wsHandlers.HandleClientWebSocket)
-	router.GET("/ws/web", wsHandlers.HandleWebWebSocket)
 }

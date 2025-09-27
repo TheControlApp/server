@@ -8,10 +8,9 @@
 
 ## Connection
 
-**Endpoints:** (defined in [routes.go](../../internal/api/routes/routes.go))
+**Endpoint:** (defined in [routes.go](../../internal/api/routes/routes.go))
 ```
-ws://localhost:8080/ws/client   (for desktop clients)
-ws://localhost:8080/ws/web      (for web clients)
+ws://localhost:8080/ws/client   (single endpoint for all clients)
 ```
 
 **Authentication Methods:**
@@ -24,7 +23,9 @@ ws://localhost:8080/ws/web      (for web clients)
    ?token=<jwt_token>
    ```
 
-**Implementation:** `HandleClientWebSocket()` and `HandleWebWebSocket()` in [websocket_handlers.go](../../internal/api/handlers/websocket_handlers.go)
+**Implementation:** `HandleClientWebSocket()` in [websocket_handlers.go](../../internal/api/handlers/websocket_handlers.go)
+
+**Client Type Detection:** Server automatically detects client type (web/desktop) based on User-Agent header
 
 **Security Features:**
 - Origin validation for allowed domains (`localhost:3000`, `localhost:8080`, etc.)

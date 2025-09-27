@@ -163,8 +163,7 @@ Base URL: `http://localhost:8080/api/v1`
 - `PUT /users/profile` - Update user profile
 
 #### WebSocket
-- `WS /ws/client` - Client WebSocket connection
-- `WS /ws/web` - Web client WebSocket connection
+- `WS /ws/client` - Universal WebSocket connection (all clients)
 
 ## 🏗️ Architecture
 
