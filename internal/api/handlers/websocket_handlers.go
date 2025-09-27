@@ -50,17 +50,11 @@ var upgrader = websocket.Upgrader{
 
 // HandleClientWebSocket handles WebSocket connections for all clients
 func (h *WebSocketHandlers) HandleClientWebSocket(c *gin.Context) {
-	// Determine client type from User-Agent or default to "client"
-	clientType := "client"
-	userAgent := c.GetHeader("User-Agent")
-	if strings.Contains(userAgent, "Mozilla") || strings.Contains(userAgent, "Chrome") || strings.Contains(userAgent, "Safari") {
-		clientType = "web"
-	}
-	h.handleWebSocketConnection(c, clientType)
+	h.handleWebSocketConnection(c)
 }
 
 // handleWebSocketConnection handles the WebSocket upgrade and authentication
-func (h *WebSocketHandlers) handleWebSocketConnection(c *gin.Context, clientType string) {
+func (h *WebSocketHandlers) handleWebSocketConnection(c *gin.Context) {
 	token := h.extractToken(c)
 	if token == "" {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "Missing authentication token"})
@@ -75,7 +69,7 @@ func (h *WebSocketHandlers) handleWebSocketConnection(c *gin.Context, clientType
 	if err != nil {
 		return
 	}
-	client := wshub.NewClient(conn, userID, token, clientType, h.Hub)
+	client := wshub.NewClient(conn, userID, token, h.Hub)
 	h.Hub.RegisterClient(client)
 	go client.WritePump()
 	go client.ReadPump()

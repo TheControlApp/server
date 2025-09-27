@@ -47,9 +47,6 @@ type Client struct {
 	// JWT Token used for authentication
 	token string
 
-	// Client type (web, desktop)
-	clientType string
-
 	// Buffered channel of outbound messages
 	send chan []byte
 
@@ -90,10 +87,8 @@ func (h *Hub) Run() {
 			if existingClient, exists := h.tokenConnections[client.token]; exists {
 				// Close the existing connection
 				logrus.WithFields(logrus.Fields{
-					"user_id":         existingClient.userID,
-					"client_type":     existingClient.clientType,
-					"new_user_id":     client.userID,
-					"new_client_type": client.clientType,
+					"user_id":     existingClient.userID,
+					"new_user_id": client.userID,
 				}).Info("Replacing existing WebSocket connection for token")
 
 				// Remove existing client
@@ -137,7 +132,6 @@ func (h *Hub) Run() {
 
 			logrus.WithFields(logrus.Fields{
 				"user_id":       client.userID,
-				"client_type":   client.clientType,
 				"total_clients": len(h.clients),
 			}).Info("Client connected")
 
@@ -160,7 +154,6 @@ func (h *Hub) Run() {
 
 				logrus.WithFields(logrus.Fields{
 					"user_id":       client.userID,
-					"client_type":   client.clientType,
 					"total_clients": len(h.clients),
 				}).Info("Client disconnected")
 			}
@@ -194,33 +187,6 @@ func (h *Hub) SendToUser(userID uuid.UUID, message Message) {
 				close(client.send)
 				delete(h.clients, client)
 				delete(connections, client)
-			}
-		}
-		// Clean up empty connection maps
-		if len(connections) == 0 {
-			delete(h.userConnections, userID)
-		}
-	}
-}
-
-// SendToUserByType sends a message to a specific user's client type
-func (h *Hub) SendToUserByType(userID uuid.UUID, clientType string, message Message) {
-	data, err := json.Marshal(message)
-	if err != nil {
-		logrus.WithError(err).Error("Failed to marshal message")
-		return
-	}
-
-	if connections, exists := h.userConnections[userID]; exists {
-		for client := range connections {
-			if client.clientType == clientType {
-				select {
-				case client.send <- data:
-				default:
-					close(client.send)
-					delete(h.clients, client)
-					delete(connections, client)
-				}
 			}
 		}
 		// Clean up empty connection maps
@@ -265,14 +231,13 @@ func (h *Hub) GetUserConnections(userID uuid.UUID) int {
 }
 
 // NewClient creates a new WebSocket client with authentication
-func NewClient(conn *websocket.Conn, userID uuid.UUID, token string, clientType string, hub *Hub) *Client {
+func NewClient(conn *websocket.Conn, userID uuid.UUID, token string, hub *Hub) *Client {
 	return &Client{
-		conn:       conn,
-		userID:     userID,
-		token:      token,
-		clientType: clientType,
-		send:       make(chan []byte, 256),
-		hub:        hub,
+		conn:   conn,
+		userID: userID,
+		token:  token,
+		send:   make(chan []byte, 256),
+		hub:    hub,
 	}
 }
 
@@ -289,10 +254,10 @@ func (h *Hub) SetMaxConnectionsPerUser(max int) {
 // GetStats returns hub statistics
 func (h *Hub) GetStats() map[string]interface{} {
 	return map[string]interface{}{
-		"total_clients":     len(h.clients),
-		"total_users":       len(h.userConnections),
-		"active_tokens":     len(h.tokenConnections),
-		"max_per_user":      h.maxConnectionsPerUser,
+		"total_clients":      len(h.clients),
+		"total_users":        len(h.userConnections),
+		"active_tokens":      len(h.tokenConnections),
+		"max_per_user":       h.maxConnectionsPerUser,
 		"message_cache_size": len(h.messageCache),
 	}
 }
@@ -310,9 +275,9 @@ func (h *Hub) CleanupStaleConnections() {
 // WritePump pumps messages from the hub to the websocket connection
 func (c *Client) WritePump() {
 	const (
-		writeWait      = 10 * time.Second    // Time allowed to write a message to peer
-		pongWait       = 60 * time.Second    // Time allowed to read the next pong message from peer
-		pingPeriod     = (pongWait * 9) / 10 // Send pings to peer with this period. Must be less than pongWait
+		writeWait  = 10 * time.Second    // Time allowed to write a message to peer
+		pongWait   = 60 * time.Second    // Time allowed to read the next pong message from peer
+		pingPeriod = (pongWait * 9) / 10 // Send pings to peer with this period. Must be less than pongWait
 	)
 
 	ticker := time.NewTicker(pingPeriod)

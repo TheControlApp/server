@@ -37,7 +37,7 @@ Once the server is running, you can access the interactive Swagger documentation
 - **POST** `/api/v1/commands/complete` - Mark command as completed
 
 ### WebSocket
-- **GET** `/ws/client` - Universal WebSocket connection (auto-detects client type)
+- **GET** `/ws/client` - Universal WebSocket connection
 
 ## 🔧 API Documentation Features
 

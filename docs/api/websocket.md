@@ -25,8 +25,6 @@ ws://localhost:8080/ws/client   (single endpoint for all clients)
 
 **Implementation:** `HandleClientWebSocket()` in [websocket_handlers.go](../../internal/api/handlers/websocket_handlers.go)
 
-**Client Type Detection:** Server automatically detects client type (web/desktop) based on User-Agent header
-
 **Security Features:**
 - Origin validation for allowed domains (`localhost:3000`, `localhost:8080`, etc.)
 - JWT token validation using the auth service
