@@ -9,6 +9,11 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
+// MessageHandler defines the interface for handling WebSocket messages
+type MessageHandler interface {
+	HandleMessage(client *Client, message []byte)
+}
+
 // Hub maintains the set of active clients and broadcasts messages to the clients
 type Hub struct {
 	// Registered clients
@@ -34,6 +39,9 @@ type Hub struct {
 
 	// Message cache for broadcast optimization
 	messageCache map[string][]byte
+
+	// Message handler for processing incoming messages
+	messageHandler MessageHandler
 }
 
 // Client represents a WebSocket client
@@ -46,6 +54,9 @@ type Client struct {
 
 	// JWT Token used for authentication
 	token string
+
+	// Authentication status
+	authenticated bool
 
 	// Buffered channel of outbound messages
 	send chan []byte
@@ -83,30 +94,33 @@ func (h *Hub) Run() {
 	for {
 		select {
 		case client := <-h.register:
-			// Check if token already has an active connection
-			if existingClient, exists := h.tokenConnections[client.token]; exists {
-				// Close the existing connection
-				logrus.WithFields(logrus.Fields{
-					"user_id":     existingClient.userID,
-					"new_user_id": client.userID,
-				}).Info("Replacing existing WebSocket connection for token")
+			// Only check token conflicts for authenticated clients
+			if client.token != "" {
+				// Check if token already has an active connection
+				if existingClient, exists := h.tokenConnections[client.token]; exists {
+					// Close the existing connection
+					logrus.WithFields(logrus.Fields{
+						"user_id":     existingClient.userID,
+						"new_user_id": client.userID,
+					}).Info("Replacing existing WebSocket connection for token")
 
-				// Remove existing client
-				delete(h.clients, existingClient)
-				close(existingClient.send)
-				existingClient.conn.Close()
+					// Remove existing client
+					delete(h.clients, existingClient)
+					close(existingClient.send)
+					existingClient.conn.Close()
 
-				// Remove from user connections
-				if connections, userExists := h.userConnections[existingClient.userID]; userExists {
-					delete(connections, existingClient)
-					if len(connections) == 0 {
-						delete(h.userConnections, existingClient.userID)
+					// Remove from user connections
+					if connections, userExists := h.userConnections[existingClient.userID]; userExists {
+						delete(connections, existingClient)
+						if len(connections) == 0 {
+							delete(h.userConnections, existingClient.userID)
+						}
 					}
 				}
 			}
 
-			// Check connection limits per user
-			if h.maxConnectionsPerUser > 0 {
+			// Check connection limits per user (only for authenticated users)
+			if h.maxConnectionsPerUser > 0 && client.userID != uuid.Nil {
 				if connections, exists := h.userConnections[client.userID]; exists {
 					if len(connections) >= h.maxConnectionsPerUser {
 						logrus.WithFields(logrus.Fields{
@@ -122,13 +136,19 @@ func (h *Hub) Run() {
 
 			// Register the new client
 			h.clients[client] = true
-			h.tokenConnections[client.token] = client
 
-			// Add to user connections
-			if _, exists := h.userConnections[client.userID]; !exists {
-				h.userConnections[client.userID] = make(map[*Client]bool)
+			// Only add to token connections if authenticated
+			if client.token != "" {
+				h.tokenConnections[client.token] = client
 			}
-			h.userConnections[client.userID][client] = true
+
+			// Only add to user connections if authenticated
+			if client.userID != uuid.Nil {
+				if _, exists := h.userConnections[client.userID]; !exists {
+					h.userConnections[client.userID] = make(map[*Client]bool)
+				}
+				h.userConnections[client.userID][client] = true
+			}
 
 			logrus.WithFields(logrus.Fields{
 				"user_id":       client.userID,
@@ -140,21 +160,26 @@ func (h *Hub) Run() {
 				delete(h.clients, client)
 				close(client.send)
 
-				// Remove from token connections
-				delete(h.tokenConnections, client.token)
+				// Remove from token connections (only if authenticated)
+				if client.token != "" {
+					delete(h.tokenConnections, client.token)
+				}
 
-				// Remove from user connections
-				if connections, exists := h.userConnections[client.userID]; exists {
-					delete(connections, client)
-					// Remove user from map if no more connections
-					if len(connections) == 0 {
-						delete(h.userConnections, client.userID)
+				// Remove from user connections (only if authenticated)
+				if client.userID != uuid.Nil {
+					if connections, exists := h.userConnections[client.userID]; exists {
+						delete(connections, client)
+						// Remove user from map if no more connections
+						if len(connections) == 0 {
+							delete(h.userConnections, client.userID)
+						}
 					}
 				}
 
 				logrus.WithFields(logrus.Fields{
 					"user_id":       client.userID,
 					"total_clients": len(h.clients),
+					"authenticated": client.authenticated,
 				}).Info("Client disconnected")
 			}
 
@@ -207,6 +232,11 @@ func (h *Hub) Broadcast(message Message) {
 	h.broadcast <- data
 }
 
+// BroadcastRaw sends raw message bytes to all connected clients
+func (h *Hub) BroadcastRaw(data []byte) {
+	h.broadcast <- data
+}
+
 // GetConnectedUsers returns a list of connected user IDs
 func (h *Hub) GetConnectedUsers() []uuid.UUID {
 	users := make([]uuid.UUID, 0, len(h.userConnections))
@@ -230,25 +260,46 @@ func (h *Hub) GetUserConnections(userID uuid.UUID) int {
 	return 0
 }
 
-// NewClient creates a new WebSocket client with authentication
+// NewClient creates a new WebSocket client
 func NewClient(conn *websocket.Conn, userID uuid.UUID, token string, hub *Hub) *Client {
 	return &Client{
-		conn:   conn,
-		userID: userID,
-		token:  token,
-		send:   make(chan []byte, 256),
-		hub:    hub,
+		conn:          conn,
+		userID:        userID,
+		token:         token,
+		authenticated: false, // Default to false, will be set by SetAuthenticated
+		send:          make(chan []byte, 256),
+		hub:           hub,
 	}
 }
 
-// RegisterClient registers a new authenticated client with the hub
+// SetAuthenticated updates the client's authentication status
+func (c *Client) SetAuthenticated(authenticated bool) {
+	c.authenticated = authenticated
+}
+
+// IsAuthenticated returns whether the client is authenticated
+func (c *Client) IsAuthenticated() bool {
+	return c.authenticated
+}
+
+// RegisterClient registers a new client with the hub (authenticated or anonymous)
 func (h *Hub) RegisterClient(client *Client) {
 	h.register <- client
+}
+
+// UnregisterClient unregisters a client from the hub
+func (h *Hub) UnregisterClient(client *Client) {
+	h.unregister <- client
 }
 
 // SetMaxConnectionsPerUser sets the maximum number of connections allowed per user
 func (h *Hub) SetMaxConnectionsPerUser(max int) {
 	h.maxConnectionsPerUser = max
+}
+
+// SetMessageHandler sets the message handler for processing incoming messages
+func (h *Hub) SetMessageHandler(handler MessageHandler) {
+	h.messageHandler = handler
 }
 
 // GetStats returns hub statistics
@@ -342,13 +393,53 @@ func (c *Client) ReadPump() {
 			break
 		}
 
-		// Handle incoming messages (TODO: implement message handling)
+		// Handle incoming messages
 		logrus.WithFields(logrus.Fields{
 			"user_id": c.userID,
 			"message": string(message),
 		}).Debug("Received WebSocket message")
 
-		// Echo message back for now (TODO: implement proper message routing)
-		c.send <- message
+		// Use message handler if available, otherwise echo back
+		if c.hub.messageHandler != nil {
+			c.hub.messageHandler.HandleMessage(c, message)
+		} else {
+			// Echo message back for now (fallback behavior)
+			c.send <- message
+		}
 	}
+}
+
+// GetUserID returns the client's user ID
+func (c *Client) GetUserID() uuid.UUID {
+	return c.userID
+}
+
+// SetUserID updates the client's user ID
+func (c *Client) SetUserID(userID uuid.UUID) {
+	c.userID = userID
+}
+
+// GetToken returns the client's JWT token
+func (c *Client) GetToken() string {
+	return c.token
+}
+
+// SetToken updates the client's JWT token
+func (c *Client) SetToken(token string) {
+	c.token = token
+}
+
+// Send returns the client's send channel
+func (c *Client) Send() chan []byte {
+	return c.send
+}
+
+// Close closes the WebSocket connection
+func (c *Client) Close() error {
+	return c.conn.Close()
+}
+
+// GetHub returns the client's hub reference
+func (c *Client) GetHub() *Hub {
+	return c.hub
 }

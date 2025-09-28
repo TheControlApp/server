@@ -22,7 +22,7 @@ import (
 
 // @title ControlMe Go API
 // @version 1.0
-// @description This is a modern, secure, and scalable rewrite of the ControlMe platform in Go.
+// @description This is a modern, secure, and scalable rewrite of the ControlMe platform in Go with real-time WebSocket command distribution.
 // @termsOfService http://swagger.io/terms/
 // @contact.name API Support
 // @contact.url http://www.swagger.io/support

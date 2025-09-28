@@ -356,7 +356,6 @@ const docTemplate = `{
             "required": [
                 "email",
                 "password",
-                "random_opt_in",
                 "screen_name",
                 "username"
             ],
@@ -388,8 +387,11 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "instructions": {
-                    "description": "JSON array of instruction objects",
-                    "type": "string"
+                    "description": "Array of instruction objects",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/models.Instruction"
+                    }
                 },
                 "receiver": {
                     "$ref": "#/definitions/models.User"
@@ -419,6 +421,18 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "updated_at": {
+                    "type": "string"
+                }
+            }
+        },
+        "models.Instruction": {
+            "type": "object",
+            "properties": {
+                "content": {
+                    "description": "Arbitrary data - can contain any JSON structure"
+                },
+                "type": {
+                    "description": "The instruction type (std_popup, std_timer, etc.)",
                     "type": "string"
                 }
             }
@@ -568,7 +582,7 @@ var SwaggerInfo = &swag.Spec{
 	BasePath:         "/api/v1",
 	Schemes:          []string{"http", "https"},
 	Title:            "ControlMe Go API",
-	Description:      "This is a modern, secure, and scalable rewrite of the ControlMe platform in Go.",
+	Description:      "This is a modern, secure, and scalable rewrite of the ControlMe platform in Go with real-time WebSocket command distribution.",
 	InfoInstanceName: "swagger",
 	SwaggerTemplate:  docTemplate,
 	LeftDelim:        "{{",

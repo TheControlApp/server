@@ -25,7 +25,6 @@ definitions:
     required:
     - email
     - password
-    - random_opt_in
     - screen_name
     - username
     type: object
@@ -36,8 +35,10 @@ definitions:
       id:
         type: string
       instructions:
-        description: JSON array of instruction objects
-        type: string
+        description: Array of instruction objects
+        items:
+          $ref: '#/definitions/models.Instruction'
+        type: array
       receiver:
         $ref: '#/definitions/models.User'
       receiver_id:
@@ -57,6 +58,14 @@ definitions:
         description: JSON array of tag names for broadcast
         type: string
       updated_at:
+        type: string
+    type: object
+  models.Instruction:
+    properties:
+      content:
+        description: Arbitrary data - can contain any JSON structure
+      type:
+        description: The instruction type (std_popup, std_timer, etc.)
         type: string
     type: object
   models.User:
@@ -156,7 +165,7 @@ info:
     name: API Support
     url: http://www.swagger.io/support
   description: This is a modern, secure, and scalable rewrite of the ControlMe platform
-    in Go.
+    in Go with real-time WebSocket command distribution.
   license:
     name: Apache 2.0
     url: http://www.apache.org/licenses/LICENSE-2.0.html

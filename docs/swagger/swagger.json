@@ -5,7 +5,7 @@
     ],
     "swagger": "2.0",
     "info": {
-        "description": "This is a modern, secure, and scalable rewrite of the ControlMe platform in Go.",
+        "description": "This is a modern, secure, and scalable rewrite of the ControlMe platform in Go with real-time WebSocket command distribution.",
         "title": "ControlMe Go API",
         "termsOfService": "http://swagger.io/terms/",
         "contact": {
@@ -354,7 +354,6 @@
             "required": [
                 "email",
                 "password",
-                "random_opt_in",
                 "screen_name",
                 "username"
             ],
@@ -386,8 +385,11 @@
                     "type": "string"
                 },
                 "instructions": {
-                    "description": "JSON array of instruction objects",
-                    "type": "string"
+                    "description": "Array of instruction objects",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/models.Instruction"
+                    }
                 },
                 "receiver": {
                     "$ref": "#/definitions/models.User"
@@ -417,6 +419,18 @@
                     "type": "string"
                 },
                 "updated_at": {
+                    "type": "string"
+                }
+            }
+        },
+        "models.Instruction": {
+            "type": "object",
+            "properties": {
+                "content": {
+                    "description": "Arbitrary data - can contain any JSON structure"
+                },
+                "type": {
+                    "description": "The instruction type (std_popup, std_timer, etc.)",
                     "type": "string"
                 }
             }

@@ -106,13 +106,13 @@ make swagger-serve # Generate docs and start server
 The Docker Compose setup includes:
 - **PostgreSQL Database** (port 5432)
 - **Go Server** with hot reload (port 8080)
-- **Swagger UI** for API documentation (port 8081)
+- **Swagger UI** for API documentation (port 8080)
 - **Nginx** reverse proxy for production (port 80/443)
 
 #### Access Points
 - **API Server**: http://localhost:8080
 - **Built-in Swagger**: http://localhost:8080/swagger/index.html
-- **Dedicated Swagger UI**: http://localhost:8081
+- **Dedicated Swagger UI**: http://localhost:8080
 - **Health Check**: http://localhost:8080/health
 
 ### Configuration

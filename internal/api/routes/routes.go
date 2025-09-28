@@ -27,7 +27,7 @@ func SetupRoutes(router *gin.Engine, db *gorm.DB, hub *websocket.Hub, cfg *confi
 	userHandlers := handlers.NewUserHandlers(userService)
 	authHandlers := handlers.NewAuthHandlers(userService)
 	commandHandlers := handlers.NewCommandHandlers(commandService)
-	wsHandlers := handlers.NewWebSocketHandlers(hub, authService.JWTManager)
+	wsHandlers := handlers.NewWebSocketHandlers(hub, authService.JWTManager, userService)
 
 	// Health check endpoint
 	// Health godoc
@@ -75,5 +75,15 @@ func SetupRoutes(router *gin.Engine, db *gorm.DB, hub *websocket.Hub, cfg *confi
 	}
 
 	// WebSocket route - single endpoint for all clients
+	// WebSocket godoc
+	// @Summary      WebSocket connection endpoint
+	// @Description  Establishes WebSocket connection for real-time command distribution. Supports anonymous and authenticated connections.
+	// @Tags         websocket
+	// @Accept       json
+	// @Produce      json
+	// @Param        Authorization  header  string  false  "Bearer token for authentication"
+	// @Param        token          query   string  false  "Token for authentication via query parameter"
+	// @Success      101  {string}  string  "Switching Protocols"
+	// @Router       /ws/client [get]
 	router.GET("/ws/client", wsHandlers.HandleClientWebSocket)
 }
