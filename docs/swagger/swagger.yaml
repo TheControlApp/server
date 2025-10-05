@@ -12,8 +12,6 @@ definitions:
     type: object
   handlers.RegisterRequest:
     properties:
-      email:
-        type: string
       password:
         type: string
       random_opt_in:
@@ -23,7 +21,6 @@ definitions:
       username:
         type: string
     required:
-    - email
     - password
     - screen_name
     - username
@@ -73,8 +70,6 @@ definitions:
       anon_cmd:
         type: boolean
       created_at:
-        type: string
-      email:
         type: string
       id:
         type: string
@@ -138,25 +133,6 @@ definitions:
         items:
           $ref: '#/definitions/models.User'
         type: array
-    type: object
-  services.CreateUserRequest:
-    properties:
-      email:
-        type: string
-      login_name:
-        type: string
-      password:
-        type: string
-      random_opt_in:
-        type: boolean
-      screen_name:
-        type: string
-    required:
-    - email
-    - login_name
-    - password
-    - random_opt_in
-    - screen_name
     type: object
 host: localhost:8080
 info:
@@ -317,35 +293,6 @@ paths:
           schema:
             $ref: '#/definitions/responses.ErrorResponse'
       summary: Get all users
-      tags:
-      - users
-    post:
-      consumes:
-      - application/json
-      description: Creates a new user
-      parameters:
-      - description: User data
-        in: body
-        name: user
-        required: true
-        schema:
-          $ref: '#/definitions/services.CreateUserRequest'
-      produces:
-      - application/json
-      responses:
-        "201":
-          description: Created
-          schema:
-            $ref: '#/definitions/responses.UserResponse'
-        "400":
-          description: Bad Request
-          schema:
-            $ref: '#/definitions/responses.ErrorResponse'
-        "500":
-          description: Internal Server Error
-          schema:
-            $ref: '#/definitions/responses.ErrorResponse'
-      summary: Create a new user
       tags:
       - users
   /users/{id}:

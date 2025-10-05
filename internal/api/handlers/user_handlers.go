@@ -61,28 +61,3 @@ func (h *UserHandlers) GetUserByID(c *gin.Context) {
 	}
 	c.JSON(http.StatusOK, responses.UserResponse{User: *user})
 }
-
-// CreateUser godoc
-// @Summary      Create a new user
-// @Description  Creates a new user
-// @Tags         users
-// @Accept       json
-// @Produce      json
-// @Param        user body services.CreateUserRequest true "User data"
-// @Success      201  {object}  responses.UserResponse
-// @Failure      400  {object}  responses.ErrorResponse
-// @Failure      500  {object}  responses.ErrorResponse
-// @Router       /users [post]
-func (h *UserHandlers) CreateUser(c *gin.Context) {
-	var req services.CreateUserRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, responses.ErrorResponse{Error: "Invalid request"})
-		return
-	}
-	user, err := h.Service.CreateUser(req)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, responses.ErrorResponse{Error: "Failed to create user"})
-		return
-	}
-	c.JSON(http.StatusCreated, responses.UserResponse{User: *user})
-}

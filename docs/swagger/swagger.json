@@ -242,50 +242,6 @@
                         }
                     }
                 }
-            },
-            "post": {
-                "description": "Creates a new user",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "users"
-                ],
-                "summary": "Create a new user",
-                "parameters": [
-                    {
-                        "description": "User data",
-                        "name": "user",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/services.CreateUserRequest"
-                        }
-                    }
-                ],
-                "responses": {
-                    "201": {
-                        "description": "Created",
-                        "schema": {
-                            "$ref": "#/definitions/responses.UserResponse"
-                        }
-                    },
-                    "400": {
-                        "description": "Bad Request",
-                        "schema": {
-                            "$ref": "#/definitions/responses.ErrorResponse"
-                        }
-                    },
-                    "500": {
-                        "description": "Internal Server Error",
-                        "schema": {
-                            "$ref": "#/definitions/responses.ErrorResponse"
-                        }
-                    }
-                }
             }
         },
         "/users/{id}": {
@@ -352,15 +308,11 @@
         "handlers.RegisterRequest": {
             "type": "object",
             "required": [
-                "email",
                 "password",
                 "screen_name",
                 "username"
             ],
             "properties": {
-                "email": {
-                    "type": "string"
-                },
                 "password": {
                     "type": "string"
                 },
@@ -442,9 +394,6 @@
                     "type": "boolean"
                 },
                 "created_at": {
-                    "type": "string"
-                },
-                "email": {
                     "type": "string"
                 },
                 "id": {
@@ -540,33 +489,6 @@
                     "items": {
                         "$ref": "#/definitions/models.User"
                     }
-                }
-            }
-        },
-        "services.CreateUserRequest": {
-            "type": "object",
-            "required": [
-                "email",
-                "login_name",
-                "password",
-                "random_opt_in",
-                "screen_name"
-            ],
-            "properties": {
-                "email": {
-                    "type": "string"
-                },
-                "login_name": {
-                    "type": "string"
-                },
-                "password": {
-                    "type": "string"
-                },
-                "random_opt_in": {
-                    "type": "boolean"
-                },
-                "screen_name": {
-                    "type": "string"
                 }
             }
         }
