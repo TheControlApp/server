@@ -21,7 +21,7 @@ POST /api/v1/auth/login
 **Body:** 
 ```json
 {
-  "login_name": "username",
+  "username": "username",
   "password": "password"
 }
 ```
@@ -29,6 +29,7 @@ POST /api/v1/auth/login
 ```json
 {
   "token": "jwt_token",
+  "message": "Login successful",
   "user": {
     "id": "uuid",
     "screen_name": "Display Name",
@@ -47,12 +48,31 @@ POST /api/v1/auth/register
 ```json
 {
   "screen_name": "Display Name",
-  "login_name": "username", 
+  "username": "username", 
   "email": "user@example.com",
   "password": "password"
 }
 ```
-**Returns:** Success/failure message
+**Returns:** 
+```json
+{
+  "user": {
+    "id": "uuid",
+    "screen_name": "Display Name",
+    "login_name": "username",
+    "email": "user@example.com",
+    "role": "user",
+    "random_opt_in": false,
+    "anon_cmd": false,
+    "verified": false,
+    "verified_code": 0,
+    "thumbs_up": 0,
+    "created_at": "2025-10-05T11:02:40.3744811-07:00",
+    "updated_at": "2025-10-05T11:02:40.3744811-07:00",
+    "login_date": "2025-10-05T11:02:40.3744811-07:00"
+  }
+}
+```
 
 ## Users
 
