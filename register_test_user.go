@@ -12,8 +12,7 @@ const serverURL = "http://localhost:8080"
 
 type RegisterRequest struct {
 	ScreenName string `json:"screen_name"`
-	LoginName  string `json:"login_name"`
-	Email      string `json:"email"`
+	Username   string `json:"username"`
 	Password   string `json:"password"`
 }
 
@@ -22,8 +21,7 @@ func main() {
 
 	registerReq := RegisterRequest{
 		ScreenName: "Test User",
-		LoginName:  "test_user",
-		Email:      "test@example.com",
+		Username:   "test_user",
 		Password:   "test_password",
 	}
 

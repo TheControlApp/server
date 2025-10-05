@@ -55,7 +55,6 @@ type CreateUserRequest struct {
 	LoginName   string `json:"login_name" binding:"required"`
 	ScreenName  string `json:"screen_name" binding:"required"`
 	Password    string `json:"password" binding:"required"`
-	Email       string `json:"email" binding:"required"`
 	RandomOptIn bool   `json:"random_opt_in" binding:"required"`
 }
 
@@ -70,7 +69,6 @@ func (us *UserService) CreateUser(req CreateUserRequest) (*models.User, error) {
 		LoginName:   req.LoginName,
 		ScreenName:  req.ScreenName,
 		Password:    hashedPassword,
-		Email:       req.Email,
 		RandomOptIn: req.RandomOptIn,
 		Role:        "user",
 	}

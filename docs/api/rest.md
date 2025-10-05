@@ -33,8 +33,7 @@ POST /api/v1/auth/login
   "user": {
     "id": "uuid",
     "screen_name": "Display Name",
-    "login_name": "username",
-    "email": "user@example.com"
+    "login_name": "username"
   }
 }
 ```
@@ -48,8 +47,7 @@ POST /api/v1/auth/register
 ```json
 {
   "screen_name": "Display Name",
-  "username": "username", 
-  "email": "user@example.com",
+  "username": "username",
   "password": "password"
 }
 ```
@@ -60,7 +58,6 @@ POST /api/v1/auth/register
     "id": "uuid",
     "screen_name": "Display Name",
     "login_name": "username",
-    "email": "user@example.com",
     "role": "user",
     "random_opt_in": false,
     "anon_cmd": false,

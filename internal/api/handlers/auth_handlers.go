@@ -25,7 +25,6 @@ type RegisterRequest struct {
 	Username    string `json:"username" binding:"required"`
 	Password    string `json:"password" binding:"required"`
 	ScreenName  string `json:"screen_name" binding:"required"`
-	Email       string `json:"email" binding:"required"`
 	RandomOptIn bool   `json:"random_opt_in"`
 }
 
@@ -91,7 +90,6 @@ func (h *AuthHandlers) Register(c *gin.Context) {
 		ScreenName:  req.ScreenName,
 		LoginName:   req.Username,
 		Password:    req.Password,
-		Email:       req.Email,
 		RandomOptIn: req.RandomOptIn,
 	}
 
