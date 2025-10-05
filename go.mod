@@ -1,4 +1,4 @@
-module github.com/thecontrolapp/controlme-go
+module github.com/thecontrolapp/server
 
 go 1.23.0
 

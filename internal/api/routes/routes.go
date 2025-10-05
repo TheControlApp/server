@@ -6,12 +6,12 @@ import (
 	"github.com/gin-gonic/gin"
 	swaggerFiles "github.com/swaggo/files"
 	ginSwagger "github.com/swaggo/gin-swagger"
-	"github.com/thecontrolapp/controlme-go/internal/api/handlers"
-	"github.com/thecontrolapp/controlme-go/internal/api/responses"
-	"github.com/thecontrolapp/controlme-go/internal/auth"
-	"github.com/thecontrolapp/controlme-go/internal/config"
-	"github.com/thecontrolapp/controlme-go/internal/services"
-	"github.com/thecontrolapp/controlme-go/internal/websocket"
+	"github.com/thecontrolapp/server/internal/api/handlers"
+	"github.com/thecontrolapp/server/internal/api/responses"
+	"github.com/thecontrolapp/server/internal/auth"
+	"github.com/thecontrolapp/server/internal/config"
+	"github.com/thecontrolapp/server/internal/services"
+	"github.com/thecontrolapp/server/internal/websocket"
 	"gorm.io/gorm"
 )
 

@@ -4,8 +4,8 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
-	"github.com/thecontrolapp/controlme-go/internal/api/responses"
-	"github.com/thecontrolapp/controlme-go/internal/services"
+	"github.com/thecontrolapp/server/internal/api/responses"
+	"github.com/thecontrolapp/server/internal/services"
 )
 
 type AuthHandlers struct {

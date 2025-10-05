@@ -5,8 +5,8 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/thecontrolapp/controlme-go/internal/auth"
-	"github.com/thecontrolapp/controlme-go/internal/models"
+	"github.com/thecontrolapp/server/internal/auth"
+	"github.com/thecontrolapp/server/internal/models"
 	"gorm.io/gorm"
 )
 

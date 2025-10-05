@@ -6,8 +6,8 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/thecontrolapp/controlme-go/internal/config"
-	"github.com/thecontrolapp/controlme-go/internal/models"
+	"github.com/thecontrolapp/server/internal/config"
+	"github.com/thecontrolapp/server/internal/models"
 	"gorm.io/driver/postgres"
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
@@ -55,11 +55,11 @@ func Initialize(cfg *config.Config) (*gorm.DB, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to get underlying sql.DB: %w", err)
 	}
-	
+
 	if err := sqlDB.Ping(); err != nil {
 		return nil, fmt.Errorf("failed to ping database: %w", err)
 	}
-	
+
 	log.Println("✓ Database connection established successfully")
 
 	// Ensure required extensions are available (PostgreSQL only)
@@ -111,13 +111,13 @@ func connectSQLite(cfg *config.Config, gormConfig *gorm.Config) (*gorm.DB, error
 // ensureExtensions ensures that required database extensions are available (PostgreSQL only)
 func ensureExtensions(db *gorm.DB) error {
 	log.Println("Ensuring UUID extension is available...")
-	
+
 	// First check if the extension exists
 	var extensionExists bool
 	if err := db.Raw("SELECT EXISTS(SELECT 1 FROM pg_extension WHERE extname = 'uuid-ossp')").Scan(&extensionExists).Error; err != nil {
 		log.Printf("Warning: Failed to check for uuid-ossp extension: %v", err)
 	}
-	
+
 	if !extensionExists {
 		if err := db.Exec("CREATE EXTENSION IF NOT EXISTS \"uuid-ossp\"").Error; err != nil {
 			log.Printf("Warning: Failed to create uuid-ossp extension: %v", err)
@@ -128,7 +128,7 @@ func ensureExtensions(db *gorm.DB) error {
 	} else {
 		log.Println("✓ UUID extension already exists")
 	}
-	
+
 	return nil
 }
 
@@ -145,31 +145,31 @@ func configureConnectionPool(sqlDB interface{}, cfg *config.Config) error {
 // runMigrations runs the database migrations
 func runMigrations(db *gorm.DB) error {
 	log.Println("Running database migrations with improved error handling...")
-	
+
 	// Migrate models in order to handle dependencies properly
 	// Start with models that have no foreign key dependencies
 	if err := migrateWithFallback(db, &models.User{}, "User"); err != nil {
 		return err
 	}
-	
+
 	if err := migrateWithFallback(db, &models.Tag{}, "Tag"); err != nil {
 		return err
 	}
-	
+
 	// Now migrate models with foreign key dependencies
 	if err := migrateCommandTable(db); err != nil {
 		return fmt.Errorf("failed to migrate Command model: %w", err)
 	}
 	log.Println("✓ Command table migrated successfully")
-	
+
 	if err := migrateWithFallback(db, &models.Block{}, "Block"); err != nil {
 		return err
 	}
-	
+
 	if err := migrateWithFallback(db, &models.Report{}, "Report"); err != nil {
 		return err
 	}
-	
+
 	log.Println("✅ Database migration completed successfully.")
 	return nil
 }
@@ -179,7 +179,7 @@ func migrateWithFallback(db *gorm.DB, model interface{}, modelName string) error
 	if err := db.AutoMigrate(model); err != nil {
 		log.Printf("GORM AutoMigrate failed for %s model: %v", modelName, err)
 		log.Printf("Attempting manual %s table creation...", modelName)
-		
+
 		// Try manual table creation
 		if err := createTableManually(db, modelName); err != nil {
 			return fmt.Errorf("manual %s table creation failed: %w", modelName, err)
@@ -195,7 +195,7 @@ func migrateCommandTable(db *gorm.DB) error {
 	if err := db.AutoMigrate(&models.Command{}); err != nil {
 		log.Printf("GORM AutoMigrate failed for Command model: %v", err)
 		log.Println("Attempting manual Command table creation...")
-		
+
 		// Create the table manually if AutoMigrate fails
 		if err := createCommandTableManually(db); err != nil {
 			return fmt.Errorf("manual Command table creation failed: %w", err)
@@ -211,14 +211,14 @@ func createCommandTableManually(db *gorm.DB) error {
 	if err := db.Raw("SELECT EXISTS (SELECT FROM information_schema.tables WHERE table_name = 'commands')").Scan(&exists).Error; err != nil {
 		return fmt.Errorf("error checking if commands table exists: %w", err)
 	}
-	
+
 	if exists {
 		log.Println("Commands table already exists, skipping manual creation")
 		return nil
 	}
-	
+
 	log.Println("Creating commands table manually due to GORM migration failure...")
-	
+
 	// Create the commands table manually with proper foreign key constraints
 	createTableSQL := `
 		CREATE TABLE commands (
@@ -233,11 +233,11 @@ func createCommandTableManually(db *gorm.DB) error {
 			CONSTRAINT fk_commands_sender FOREIGN KEY (sender_id) REFERENCES users(id) ON DELETE CASCADE,
 			CONSTRAINT fk_commands_receiver FOREIGN KEY (receiver_id) REFERENCES users(id) ON DELETE SET NULL
 		)`
-	
+
 	if err := db.Exec(createTableSQL).Error; err != nil {
 		return fmt.Errorf("error creating commands table: %w", err)
 	}
-	
+
 	// Create indexes for better performance
 	indexSQL := []string{
 		"CREATE INDEX IF NOT EXISTS idx_commands_sender_id ON commands(sender_id)",
@@ -245,14 +245,14 @@ func createCommandTableManually(db *gorm.DB) error {
 		"CREATE INDEX IF NOT EXISTS idx_commands_status ON commands(status)",
 		"CREATE INDEX IF NOT EXISTS idx_commands_created_at ON commands(created_at)",
 	}
-	
+
 	for _, sql := range indexSQL {
 		if err := db.Exec(sql).Error; err != nil {
 			log.Printf("Warning: Failed to create index: %v", err)
 			// Don't fail the migration for index creation failures
 		}
 	}
-	
+
 	log.Println("Commands table created manually with indexes")
 	return nil
 }
@@ -280,14 +280,14 @@ func createUserTableManually(db *gorm.DB) error {
 	if err := db.Raw("SELECT EXISTS (SELECT FROM information_schema.tables WHERE table_name = 'users')").Scan(&exists).Error; err != nil {
 		return fmt.Errorf("error checking if users table exists: %w", err)
 	}
-	
+
 	if exists {
 		log.Println("Users table already exists, skipping manual creation")
 		return nil
 	}
-	
+
 	log.Println("Creating users table manually due to GORM migration failure...")
-	
+
 	createTableSQL := `
 		CREATE TABLE users (
 			id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
@@ -305,11 +305,11 @@ func createUserTableManually(db *gorm.DB) error {
 			updated_at TIMESTAMPTZ DEFAULT NOW(),
 			login_date TIMESTAMPTZ DEFAULT NOW()
 		)`
-	
+
 	if err := db.Exec(createTableSQL).Error; err != nil {
 		return fmt.Errorf("error creating users table: %w", err)
 	}
-	
+
 	// Create indexes
 	indexSQL := []string{
 		"CREATE UNIQUE INDEX IF NOT EXISTS idx_users_login_name ON users(login_name)",
@@ -317,13 +317,13 @@ func createUserTableManually(db *gorm.DB) error {
 		"CREATE INDEX IF NOT EXISTS idx_users_role ON users(role)",
 		"CREATE INDEX IF NOT EXISTS idx_users_created_at ON users(created_at)",
 	}
-	
+
 	for _, sql := range indexSQL {
 		if err := db.Exec(sql).Error; err != nil {
 			log.Printf("Warning: Failed to create index: %v", err)
 		}
 	}
-	
+
 	log.Println("Users table created manually with indexes")
 	return nil
 }
@@ -334,14 +334,14 @@ func createTagTableManually(db *gorm.DB) error {
 	if err := db.Raw("SELECT EXISTS (SELECT FROM information_schema.tables WHERE table_name = 'tags')").Scan(&exists).Error; err != nil {
 		return fmt.Errorf("error checking if tags table exists: %w", err)
 	}
-	
+
 	if exists {
 		log.Println("Tags table already exists, skipping manual creation")
 		return nil
 	}
-	
+
 	log.Println("Creating tags table manually due to GORM migration failure...")
-	
+
 	createTableSQL := `
 		CREATE TABLE tags (
 			id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
@@ -350,23 +350,23 @@ func createTagTableManually(db *gorm.DB) error {
 			created_at TIMESTAMPTZ DEFAULT NOW(),
 			updated_at TIMESTAMPTZ DEFAULT NOW()
 		)`
-	
+
 	if err := db.Exec(createTableSQL).Error; err != nil {
 		return fmt.Errorf("error creating tags table: %w", err)
 	}
-	
+
 	// Create indexes
 	indexSQL := []string{
 		"CREATE UNIQUE INDEX IF NOT EXISTS idx_tags_name ON tags(name)",
 		"CREATE INDEX IF NOT EXISTS idx_tags_created_at ON tags(created_at)",
 	}
-	
+
 	for _, sql := range indexSQL {
 		if err := db.Exec(sql).Error; err != nil {
 			log.Printf("Warning: Failed to create index: %v", err)
 		}
 	}
-	
+
 	log.Println("Tags table created manually with indexes")
 	return nil
 }
@@ -377,14 +377,14 @@ func createBlockTableManually(db *gorm.DB) error {
 	if err := db.Raw("SELECT EXISTS (SELECT FROM information_schema.tables WHERE table_name = 'blocks')").Scan(&exists).Error; err != nil {
 		return fmt.Errorf("error checking if blocks table exists: %w", err)
 	}
-	
+
 	if exists {
 		log.Println("Blocks table already exists, skipping manual creation")
 		return nil
 	}
-	
+
 	log.Println("Creating blocks table manually due to GORM migration failure...")
-	
+
 	createTableSQL := `
 		CREATE TABLE blocks (
 			id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
@@ -395,24 +395,24 @@ func createBlockTableManually(db *gorm.DB) error {
 			CONSTRAINT fk_blocks_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
 			CONSTRAINT fk_blocks_blocked FOREIGN KEY (blocked_id) REFERENCES users(id) ON DELETE CASCADE
 		)`
-	
+
 	if err := db.Exec(createTableSQL).Error; err != nil {
 		return fmt.Errorf("error creating blocks table: %w", err)
 	}
-	
+
 	// Create indexes
 	indexSQL := []string{
 		"CREATE INDEX IF NOT EXISTS idx_blocks_user_id ON blocks(user_id)",
 		"CREATE INDEX IF NOT EXISTS idx_blocks_blocked_id ON blocks(blocked_id)",
 		"CREATE UNIQUE INDEX IF NOT EXISTS idx_blocks_unique ON blocks(user_id, blocked_id)",
 	}
-	
+
 	for _, sql := range indexSQL {
 		if err := db.Exec(sql).Error; err != nil {
 			log.Printf("Warning: Failed to create index: %v", err)
 		}
 	}
-	
+
 	log.Println("Blocks table created manually with indexes")
 	return nil
 }
@@ -423,14 +423,14 @@ func createReportTableManually(db *gorm.DB) error {
 	if err := db.Raw("SELECT EXISTS (SELECT FROM information_schema.tables WHERE table_name = 'reports')").Scan(&exists).Error; err != nil {
 		return fmt.Errorf("error checking if reports table exists: %w", err)
 	}
-	
+
 	if exists {
 		log.Println("Reports table already exists, skipping manual creation")
 		return nil
 	}
-	
+
 	log.Println("Creating reports table manually due to GORM migration failure...")
-	
+
 	createTableSQL := `
 		CREATE TABLE reports (
 			id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
@@ -442,11 +442,11 @@ func createReportTableManually(db *gorm.DB) error {
 			CONSTRAINT fk_reports_reporter FOREIGN KEY (reporter_id) REFERENCES users(id) ON DELETE CASCADE,
 			CONSTRAINT fk_reports_reported FOREIGN KEY (reported_id) REFERENCES users(id) ON DELETE CASCADE
 		)`
-	
+
 	if err := db.Exec(createTableSQL).Error; err != nil {
 		return fmt.Errorf("error creating reports table: %w", err)
 	}
-	
+
 	// Create indexes
 	indexSQL := []string{
 		"CREATE INDEX IF NOT EXISTS idx_reports_reporter_id ON reports(reporter_id)",
@@ -454,13 +454,13 @@ func createReportTableManually(db *gorm.DB) error {
 		"CREATE INDEX IF NOT EXISTS idx_reports_status ON reports(status)",
 		"CREATE INDEX IF NOT EXISTS idx_reports_created_at ON reports(created_at)",
 	}
-	
+
 	for _, sql := range indexSQL {
 		if err := db.Exec(sql).Error; err != nil {
 			log.Printf("Warning: Failed to create index: %v", err)
 		}
 	}
-	
+
 	log.Println("Reports table created manually with indexes")
 	return nil
 }

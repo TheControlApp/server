@@ -11,13 +11,13 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/sirupsen/logrus"
-	"github.com/thecontrolapp/controlme-go/internal/api/routes"
-	"github.com/thecontrolapp/controlme-go/internal/config"
-	"github.com/thecontrolapp/controlme-go/internal/database"
-	"github.com/thecontrolapp/controlme-go/internal/websocket"
+	"github.com/thecontrolapp/server/internal/api/routes"
+	"github.com/thecontrolapp/server/internal/config"
+	"github.com/thecontrolapp/server/internal/database"
+	"github.com/thecontrolapp/server/internal/websocket"
 
 	// Import generated swagger docs
-	_ "github.com/thecontrolapp/controlme-go/docs/swagger"
+	_ "github.com/thecontrolapp/server/docs/swagger"
 )
 
 // @title ControlMe Go API

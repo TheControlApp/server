@@ -1,6 +1,6 @@
 package responses
 
-import "github.com/thecontrolapp/controlme-go/internal/models"
+import "github.com/thecontrolapp/server/internal/models"
 
 // AuthResponse represents the response for authentication endpoints
 type AuthResponse struct {

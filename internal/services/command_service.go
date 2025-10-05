@@ -2,8 +2,9 @@ package services
 
 import (
 	"fmt"
+
 	"github.com/google/uuid"
-	"github.com/thecontrolapp/controlme-go/internal/models"
+	"github.com/thecontrolapp/server/internal/models"
 	"gorm.io/gorm"
 )
 

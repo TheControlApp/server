@@ -2,9 +2,9 @@ package api
 
 import (
 	"github.com/gin-gonic/gin"
-	"github.com/thecontrolapp/controlme-go/internal/api/routes"
-	"github.com/thecontrolapp/controlme-go/internal/config"
-	"github.com/thecontrolapp/controlme-go/internal/websocket"
+	"github.com/thecontrolapp/server/internal/api/routes"
+	"github.com/thecontrolapp/server/internal/config"
+	"github.com/thecontrolapp/server/internal/websocket"
 	"gorm.io/gorm"
 )
 
