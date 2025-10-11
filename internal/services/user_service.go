@@ -1,7 +1,9 @@
 package services
 
 import (
+	"errors"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -9,6 +11,42 @@ import (
 	"github.com/thecontrolapp/server/internal/models"
 	"gorm.io/gorm"
 )
+
+// Custom error types for better error handling
+var (
+	ErrUserNotFound      = errors.New("user not found")
+	ErrInvalidPassword   = errors.New("invalid password")
+	ErrDuplicateUsername = errors.New("username already exists")
+	ErrPasswordTooWeak   = errors.New("password does not meet requirements")
+	ErrInvalidUsername   = errors.New("username does not meet requirements")
+)
+
+// ValidateUsername checks if a username meets requirements
+func ValidateUsername(username string) error {
+	if len(username) < 3 {
+		return fmt.Errorf("%w: username must be at least 3 characters long", ErrInvalidUsername)
+	}
+	if len(username) > 50 {
+		return fmt.Errorf("%w: username must be no more than 50 characters long", ErrInvalidUsername)
+	}
+	if strings.TrimSpace(username) != username {
+		return fmt.Errorf("%w: username cannot have leading or trailing spaces", ErrInvalidUsername)
+	}
+	// Additional checks could be added here (alphanumeric, special chars, etc.)
+	return nil
+}
+
+// ValidatePassword checks if a password meets requirements
+func ValidatePassword(password string) error {
+	if len(password) < 6 {
+		return fmt.Errorf("%w: password must be at least 6 characters long", ErrPasswordTooWeak)
+	}
+	if len(password) > 128 {
+		return fmt.Errorf("%w: password must be no more than 128 characters long", ErrPasswordTooWeak)
+	}
+	// Additional password strength checks could be added here
+	return nil
+}
 
 // UserService handles user-related operations
 type UserService struct {
@@ -32,7 +70,7 @@ func (us *UserService) AuthenticateUser(username, password string) (*models.User
 	err := us.db.Where("login_name = ? OR screen_name = ?", username, username).First(&user).Error
 	if err != nil {
 		if err == gorm.ErrRecordNotFound {
-			return nil, fmt.Errorf("user not found")
+			return nil, ErrUserNotFound
 		}
 		return nil, fmt.Errorf("database error: %w", err)
 	}
@@ -40,7 +78,7 @@ func (us *UserService) AuthenticateUser(username, password string) (*models.User
 	// Verify password
 	err = us.Auth.PasswordManager.VerifyPassword(password, user.Password)
 	if err != nil {
-		return nil, fmt.Errorf("invalid password")
+		return nil, ErrInvalidPassword
 	}
 
 	// Update login date
@@ -60,6 +98,32 @@ type CreateUserRequest struct {
 
 // CreateUser creates a new user with the modern API
 func (us *UserService) CreateUser(req CreateUserRequest) (*models.User, error) {
+	// Validate username requirements
+	if err := ValidateUsername(req.LoginName); err != nil {
+		return nil, err
+	}
+
+	// Validate screen name (same rules as username for now)
+	if err := ValidateUsername(req.ScreenName); err != nil {
+		return nil, fmt.Errorf("screen name validation failed: %w", err)
+	}
+
+	// Validate password requirements
+	if err := ValidatePassword(req.Password); err != nil {
+		return nil, err
+	}
+
+	// Check if username already exists (either login_name or screen_name)
+	var existingUser models.User
+	err := us.db.Where("login_name = ? OR screen_name = ?", req.LoginName, req.ScreenName).First(&existingUser).Error
+	if err == nil {
+		// User exists
+		return nil, fmt.Errorf("%w: '%s'", ErrDuplicateUsername, req.LoginName)
+	} else if err != gorm.ErrRecordNotFound {
+		// Database error
+		return nil, fmt.Errorf("database error while checking username: %w", err)
+	}
+
 	hashedPassword, err := us.Auth.PasswordManager.HashPassword(req.Password)
 	if err != nil {
 		return nil, fmt.Errorf("failed to hash password: %w", err)
@@ -74,7 +138,12 @@ func (us *UserService) CreateUser(req CreateUserRequest) (*models.User, error) {
 	}
 	err = us.db.Create(&user).Error
 	if err != nil {
-		return nil, err
+		// Check for database constraint violations
+		if strings.Contains(strings.ToLower(err.Error()), "duplicate") ||
+			strings.Contains(strings.ToLower(err.Error()), "unique") {
+			return nil, fmt.Errorf("%w: database constraint violation", ErrDuplicateUsername)
+		}
+		return nil, fmt.Errorf("database error during user creation: %w", err)
 	}
 	return &user, nil
 }

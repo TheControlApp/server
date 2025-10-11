@@ -34,6 +34,26 @@ type ErrorResponse struct {
 	Error string `json:"error" example:"Invalid request"`
 }
 
+// ValidationError represents a field-specific validation error
+type ValidationError struct {
+	Field   string `json:"field" example:"username"`
+	Message string `json:"message" example:"Username must be at least 3 characters"`
+}
+
+// ValidationErrorResponse represents validation errors for form fields
+type ValidationErrorResponse struct {
+	Error   string            `json:"error" example:"Validation failed"`
+	Details []ValidationError `json:"details"`
+}
+
+// DetailedErrorResponse represents a detailed error with code and context
+type DetailedErrorResponse struct {
+	Error   string      `json:"error" example:"Registration failed"`
+	Code    string      `json:"code" example:"DUPLICATE_USERNAME"`
+	Message string      `json:"message" example:"A user with this username already exists"`
+	Details interface{} `json:"details,omitempty"`
+}
+
 // HealthResponse represents the health check response
 type HealthResponse struct {
 	Status  string `json:"status" example:"ok"`
