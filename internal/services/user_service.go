@@ -12,39 +12,81 @@ import (
 	"gorm.io/gorm"
 )
 
-// Custom error types for better error handling
+// Standard error types following HTTP conventions
 var (
-	ErrUserNotFound      = errors.New("user not found")
-	ErrInvalidPassword   = errors.New("invalid password")
-	ErrDuplicateUsername = errors.New("username already exists")
-	ErrPasswordTooWeak   = errors.New("password does not meet requirements")
-	ErrInvalidUsername   = errors.New("username does not meet requirements")
+	ErrUserNotFound = errors.New("user not found")
+	ErrUnauthorized = errors.New("authentication failed")
+	ErrConflict     = errors.New("resource conflict")
+	ErrValidation   = errors.New("validation error")
+	ErrBadRequest   = errors.New("bad request")
 )
 
+// ValidationError represents a field validation error with standard code
+type ValidationError struct {
+	Field   string
+	Message string
+	Code    string
+}
+
+// Error implements the error interface
+func (e *ValidationError) Error() string {
+	return fmt.Sprintf("%s: %s", e.Field, e.Message)
+}
+
+// ConflictError represents a resource conflict
+type ConflictError struct {
+	Resource string
+	Value    string
+	Message  string
+}
+
+// Error implements the error interface
+func (e *ConflictError) Error() string {
+	return e.Message
+}
+
 // ValidateUsername checks if a username meets requirements
-func ValidateUsername(username string) error {
+func ValidateUsername(username string) *ValidationError {
 	if len(username) < 3 {
-		return fmt.Errorf("%w: username must be at least 3 characters long", ErrInvalidUsername)
+		return &ValidationError{
+			Field:   "username",
+			Message: "Username must be at least 3 characters long",
+			Code:    "MIN_LENGTH", // More intuitive than TOO_SHORT
+		}
 	}
 	if len(username) > 50 {
-		return fmt.Errorf("%w: username must be no more than 50 characters long", ErrInvalidUsername)
+		return &ValidationError{
+			Field:   "username",
+			Message: "Username must be no more than 50 characters long",
+			Code:    "MAX_LENGTH", // More intuitive than TOO_LONG
+		}
 	}
 	if strings.TrimSpace(username) != username {
-		return fmt.Errorf("%w: username cannot have leading or trailing spaces", ErrInvalidUsername)
+		return &ValidationError{
+			Field:   "username",
+			Message: "Username cannot have leading or trailing spaces",
+			Code:    "INVALID_FORMAT",
+		}
 	}
-	// Additional checks could be added here (alphanumeric, special chars, etc.)
 	return nil
 }
 
 // ValidatePassword checks if a password meets requirements
-func ValidatePassword(password string) error {
+func ValidatePassword(password string) *ValidationError {
 	if len(password) < 6 {
-		return fmt.Errorf("%w: password must be at least 6 characters long", ErrPasswordTooWeak)
+		return &ValidationError{
+			Field:   "password",
+			Message: "Password must be at least 6 characters long",
+			Code:    "MIN_LENGTH", // Consistent with username
+		}
 	}
 	if len(password) > 128 {
-		return fmt.Errorf("%w: password must be no more than 128 characters long", ErrPasswordTooWeak)
+		return &ValidationError{
+			Field:   "password",
+			Message: "Password must be no more than 128 characters long",
+			Code:    "MAX_LENGTH", // Consistent with username
+		}
 	}
-	// Additional password strength checks could be added here
 	return nil
 }
 
@@ -78,7 +120,7 @@ func (us *UserService) AuthenticateUser(username, password string) (*models.User
 	// Verify password
 	err = us.Auth.PasswordManager.VerifyPassword(password, user.Password)
 	if err != nil {
-		return nil, ErrInvalidPassword
+		return nil, ErrUnauthorized
 	}
 
 	// Update login date
@@ -105,7 +147,11 @@ func (us *UserService) CreateUser(req CreateUserRequest) (*models.User, error) {
 
 	// Validate screen name (same rules as username for now)
 	if err := ValidateUsername(req.ScreenName); err != nil {
-		return nil, fmt.Errorf("screen name validation failed: %w", err)
+		return nil, &ValidationError{
+			Field:   "screen_name",
+			Message: err.Message,
+			Code:    err.Code,
+		}
 	}
 
 	// Validate password requirements
@@ -118,7 +164,11 @@ func (us *UserService) CreateUser(req CreateUserRequest) (*models.User, error) {
 	err := us.db.Where("login_name = ? OR screen_name = ?", req.LoginName, req.ScreenName).First(&existingUser).Error
 	if err == nil {
 		// User exists
-		return nil, fmt.Errorf("%w: '%s'", ErrDuplicateUsername, req.LoginName)
+		return nil, &ConflictError{
+			Resource: "username",
+			Value:    req.LoginName,
+			Message:  "Username already exists",
+		}
 	} else if err != gorm.ErrRecordNotFound {
 		// Database error
 		return nil, fmt.Errorf("database error while checking username: %w", err)
@@ -141,14 +191,16 @@ func (us *UserService) CreateUser(req CreateUserRequest) (*models.User, error) {
 		// Check for database constraint violations
 		if strings.Contains(strings.ToLower(err.Error()), "duplicate") ||
 			strings.Contains(strings.ToLower(err.Error()), "unique") {
-			return nil, fmt.Errorf("%w: database constraint violation", ErrDuplicateUsername)
+			return nil, &ConflictError{
+				Resource: "username",
+				Value:    req.LoginName,
+				Message:  "Username already exists",
+			}
 		}
 		return nil, fmt.Errorf("database error during user creation: %w", err)
 	}
 	return &user, nil
-}
-
-// GetAllUsers returns all users
+} // GetAllUsers returns all users
 func (us *UserService) GetAllUsers() ([]models.User, error) {
 	var users []models.User
 	err := us.db.Find(&users).Error

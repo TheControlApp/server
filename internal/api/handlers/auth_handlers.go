@@ -3,7 +3,6 @@ package handlers
 import (
 	"errors"
 	"net/http"
-	"strings"
 
 	"github.com/gin-gonic/gin"
 	"github.com/thecontrolapp/server/internal/api/responses"
@@ -39,59 +38,31 @@ type RegisterRequest struct {
 // @Produce      json
 // @Param        credentials body LoginRequest true "User credentials"
 // @Success      200  {object}  responses.AuthResponse
-// @Failure      400  {object}  responses.ValidationErrorResponse
-// @Failure      401  {object}  responses.DetailedErrorResponse
+// @Failure      400  {object}  responses.BadRequestErrorResponse
+// @Failure      401  {object}  responses.UnauthorizedErrorResponse
 // @Failure      500  {object}  responses.ErrorResponse
 // @Router       /auth/login [post]
 func (h *AuthHandlers) Login(c *gin.Context) {
 	var req LoginRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		var validationErrors []responses.ValidationError
-
-		errorMsg := err.Error()
-		if strings.Contains(errorMsg, "username") {
-			validationErrors = append(validationErrors, responses.ValidationError{
-				Field:   "username",
-				Message: "Username is required",
-			})
-		}
-		if strings.Contains(errorMsg, "password") {
-			validationErrors = append(validationErrors, responses.ValidationError{
-				Field:   "password",
-				Message: "Password is required",
-			})
-		}
-
-		if len(validationErrors) == 0 {
-			validationErrors = append(validationErrors, responses.ValidationError{
-				Field:   "request",
-				Message: "Invalid JSON format or missing required fields",
-			})
-		}
-
-		c.JSON(http.StatusBadRequest, responses.ValidationErrorResponse{
-			Error:   "Validation failed",
-			Details: validationErrors,
+		c.JSON(http.StatusBadRequest, responses.BadRequestErrorResponse{
+			Type:   "bad_request",
+			Title:  "Bad Request",
+			Status: http.StatusBadRequest,
+			Detail: "Request body is not valid JSON or missing required fields",
 		})
 		return
 	}
 
 	user, err := h.UserService.AuthenticateUser(req.Username, req.Password)
 	if err != nil {
-		if errors.Is(err, services.ErrUserNotFound) {
-			c.JSON(http.StatusUnauthorized, responses.DetailedErrorResponse{
-				Error:   "Authentication failed",
-				Code:    "USER_NOT_FOUND",
-				Message: "No user found with the provided username",
-			})
-			return
-		}
-
-		if errors.Is(err, services.ErrInvalidPassword) {
-			c.JSON(http.StatusUnauthorized, responses.DetailedErrorResponse{
-				Error:   "Authentication failed",
-				Code:    "INVALID_PASSWORD",
-				Message: "The password provided is incorrect",
+		if errors.Is(err, services.ErrUserNotFound) || errors.Is(err, services.ErrUnauthorized) {
+			c.JSON(http.StatusUnauthorized, responses.UnauthorizedErrorResponse{
+				Type:   "unauthorized",
+				Title:  "Authentication Failed",
+				Status: http.StatusUnauthorized,
+				Detail: "Invalid username or password",
+				Action: "Please check your credentials and try again",
 			})
 			return
 		}
@@ -113,9 +84,7 @@ func (h *AuthHandlers) Login(c *gin.Context) {
 		User:    *user,
 		Token:   token,
 	})
-}
-
-// Register creates a new user account
+} // Register creates a new user account
 // Register godoc
 // @Summary      Register a new user
 // @Description  Creates a new user account
@@ -124,52 +93,19 @@ func (h *AuthHandlers) Login(c *gin.Context) {
 // @Produce      json
 // @Param        user body RegisterRequest true "User registration details"
 // @Success      201  {object}  responses.UserResponse
-// @Failure      400  {object}  responses.ValidationErrorResponse
-// @Failure      409  {object}  responses.DetailedErrorResponse
+// @Failure      400  {object}  responses.BadRequestErrorResponse
+// @Failure      409  {object}  responses.ConflictErrorResponse
+// @Failure      422  {object}  responses.ValidationErrorResponse
 // @Failure      500  {object}  responses.ErrorResponse
 // @Router       /auth/register [post]
 func (h *AuthHandlers) Register(c *gin.Context) {
 	var req RegisterRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		// Parse JSON binding errors to provide field-specific feedback
-		var validationErrors []responses.ValidationError
-
-		errorMsg := err.Error()
-		if strings.Contains(errorMsg, "username") || strings.Contains(errorMsg, "login_name") {
-			validationErrors = append(validationErrors, responses.ValidationError{
-				Field:   "username",
-				Message: "Username is required and must be valid",
-			})
-		}
-		if strings.Contains(errorMsg, "screen_name") {
-			validationErrors = append(validationErrors, responses.ValidationError{
-				Field:   "screen_name",
-				Message: "Screen name is required",
-			})
-		}
-		if strings.Contains(errorMsg, "password") {
-			validationErrors = append(validationErrors, responses.ValidationError{
-				Field:   "password",
-				Message: "Password is required",
-			})
-		}
-		if strings.Contains(errorMsg, "random_opt_in") {
-			validationErrors = append(validationErrors, responses.ValidationError{
-				Field:   "random_opt_in",
-				Message: "Random opt-in field is required",
-			})
-		}
-
-		if len(validationErrors) == 0 {
-			validationErrors = append(validationErrors, responses.ValidationError{
-				Field:   "request",
-				Message: "Invalid JSON format or missing required fields",
-			})
-		}
-
-		c.JSON(http.StatusBadRequest, responses.ValidationErrorResponse{
-			Error:   "Validation failed",
-			Details: validationErrors,
+		c.JSON(http.StatusBadRequest, responses.BadRequestErrorResponse{
+			Type:   "bad_request",
+			Title:  "Bad Request",
+			Status: http.StatusBadRequest,
+			Detail: "Request body is not valid JSON or missing required fields",
 		})
 		return
 	}
@@ -183,32 +119,32 @@ func (h *AuthHandlers) Register(c *gin.Context) {
 
 	user, err := h.UserService.CreateUser(userReq)
 	if err != nil {
-		// Handle specific error types
-		if errors.Is(err, services.ErrDuplicateUsername) {
-			c.JSON(http.StatusConflict, responses.DetailedErrorResponse{
-				Error:   "Registration failed",
-				Code:    "DUPLICATE_USERNAME",
-				Message: "A user with this username already exists. Please choose a different username.",
-				Details: map[string]string{"username": req.Username},
+		// Check if it's a validation error
+		if validationErr, ok := err.(*services.ValidationError); ok {
+			c.JSON(http.StatusUnprocessableEntity, responses.ValidationErrorResponse{
+				Type:   "validation_error",
+				Title:  "Validation Failed",
+				Status: http.StatusUnprocessableEntity,
+				Detail: "One or more fields failed validation",
+				Errors: []responses.ValidationError{{
+					Field:   validationErr.Field,
+					Message: validationErr.Message,
+					Code:    validationErr.Code,
+				}},
+				Help: "Please check the field requirements in the API documentation",
 			})
 			return
 		}
 
-		if errors.Is(err, services.ErrInvalidUsername) {
-			c.JSON(http.StatusBadRequest, responses.DetailedErrorResponse{
-				Error:   "Registration failed",
-				Code:    "INVALID_USERNAME",
-				Message: err.Error(),
-				Details: map[string]string{"username": req.Username},
-			})
-			return
-		}
-
-		if errors.Is(err, services.ErrPasswordTooWeak) {
-			c.JSON(http.StatusBadRequest, responses.DetailedErrorResponse{
-				Error:   "Registration failed",
-				Code:    "PASSWORD_TOO_WEAK",
-				Message: err.Error(),
+		// Check if it's a conflict error
+		if conflictErr, ok := err.(*services.ConflictError); ok {
+			c.JSON(http.StatusConflict, responses.ConflictErrorResponse{
+				Type:     "conflict",
+				Title:    "Resource Conflict",
+				Status:   http.StatusConflict,
+				Detail:   conflictErr.Message,
+				Instance: map[string]string{conflictErr.Resource: conflictErr.Value},
+				Action:   "Please choose a different username and try again",
 			})
 			return
 		}
