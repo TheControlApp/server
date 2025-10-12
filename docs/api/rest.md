@@ -2,6 +2,8 @@
 
 All endpoints require JWT authentication: `Authorization: Bearer <token>`
 
+**🧪 Test Examples:** See [API Test Examples](../examples/api_tests/README.md) for complete test cases including error scenarios and validation examples.
+
 **🔗 Code References:**
 - [API Routes Definition](../../internal/api/routes/routes.go) - Complete endpoint mapping
 - [Auth Handlers](../../internal/api/handlers/auth_handlers.go) - Authentication implementation
