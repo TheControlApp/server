@@ -38,9 +38,9 @@ type RegisterRequest struct {
 // @Produce      json
 // @Param        credentials body LoginRequest true "User credentials"
 // @Success      200  {object}  responses.AuthResponse
-// @Failure      400  {object}  responses.BadRequestErrorResponse
-// @Failure      401  {object}  responses.UnauthorizedErrorResponse
-// @Failure      500  {object}  responses.InternalServerErrorResponse
+// @Failure      400  {object}  responses.ErrorResponse
+// @Failure      401  {object}  responses.ErrorResponse
+// @Failure      500  {object}  responses.ErrorResponse
 // @Router       /auth/login [post]
 func (h *AuthHandlers) Login(c *gin.Context) {
 	var req LoginRequest
@@ -87,10 +87,10 @@ func (h *AuthHandlers) Login(c *gin.Context) {
 // @Produce      json
 // @Param        user body RegisterRequest true "User registration details"
 // @Success      201  {object}  responses.UserResponse
-// @Failure      400  {object}  responses.BadRequestErrorResponse
+// @Failure      400  {object}  responses.ErrorResponse
 // @Failure      409  {object}  responses.ConflictErrorResponse
 // @Failure      422  {object}  responses.ValidationErrorResponse
-// @Failure      500  {object}  responses.InternalServerErrorResponse
+// @Failure      500  {object}  responses.ErrorResponse
 // @Router       /auth/register [post]
 func (h *AuthHandlers) Register(c *gin.Context) {
 	var req RegisterRequest

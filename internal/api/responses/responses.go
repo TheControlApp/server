@@ -6,11 +6,19 @@ import (
 	"github.com/thecontrolapp/server/internal/models"
 )
 
-// PaymentRequiredErrorResponse represents a payment required error (HTTP 402)
-type PaymentRequiredErrorResponse struct {
-	ProblemDetails
-	DeveloperHelp
-	PricingURL string `json:"pricing_url,omitempty"`
+// PaymentRequiredErrorResponse represents a payment requ// NewUnauthorizedError creates an unauthorized error response
+func NewUnauthorizedError(detail, action string) ErrorResponse {
+	return ErrorResponse{
+		ProblemDetails: ProblemDetails{
+			Type:   "unauthorized",
+			Title:  "Unauthorized Access",
+			Status: 401,
+			Detail: detail,
+		},
+		DeveloperHelp: DeveloperHelp{
+			Action: action,
+		},
+	}
 }
 
 // Response structures to reduce duplication
@@ -63,23 +71,11 @@ type MessageResponse struct {
 	BaseResponse
 }
 
-// ErrorResponse represents a simple error response
-type ErrorResponse struct {
-	Error string `json:"error" example:"Internal server error"`
-}
-
 // ValidationError represents a field-specific validation error
 type ValidationError struct {
 	Field   string `json:"field" example:"username"`
 	Message string `json:"message" example:"Username must be at least 3 characters"`
 	Code    string `json:"code" example:"MIN_LENGTH"`
-}
-
-// SimpleErrorResponse represents a simplified error response for basic use cases
-type SimpleErrorResponse struct {
-	Error   string `json:"error" example:"Username is too short"`
-	Code    string `json:"code,omitempty" example:"VALIDATION_ERROR"`
-	Message string `json:"message,omitempty" example:"Please check your input and try again"`
 }
 
 // ValidationErrorResponse represents validation errors for form fields (HTTP 422)
@@ -89,57 +85,24 @@ type ValidationErrorResponse struct {
 	Errors []ValidationError `json:"errors"`
 }
 
-// ConflictErrorResponse represents resource conflict errors (HTTP 409)
+// ErrorResponse represents all standard API errors with optional developer help
+type ErrorResponse struct {
+	ProblemDetails
+	DeveloperHelp `json:",omitempty"`
+}
+
+// ConflictErrorResponse has additional Instance field
 type ConflictErrorResponse struct {
 	ProblemDetails
 	DeveloperHelp
 	Instance interface{} `json:"instance,omitempty"`
-}
-
-// UnauthorizedErrorResponse represents authentication errors (HTTP 401)
-type UnauthorizedErrorResponse struct {
-	ProblemDetails
-	DeveloperHelp
-}
-
-// BadRequestErrorResponse represents malformed request errors (HTTP 400)
-type BadRequestErrorResponse struct {
-	ProblemDetails
-}
-
-// NotFoundErrorResponse represents not found errors (HTTP 404)
-type NotFoundErrorResponse struct {
-	ProblemDetails
-}
-
-// ForbiddenErrorResponse represents forbidden access errors (HTTP 403)
-type ForbiddenErrorResponse struct {
-	ProblemDetails
-	DeveloperHelp
-}
-
-// InternalServerErrorResponse represents internal server errors (HTTP 500)
-type InternalServerErrorResponse struct {
-	ProblemDetails
-	DeveloperHelp
-}
-
-// HealthResponse represents the health check response
+} // HealthResponse represents the health check response
 type HealthResponse struct {
 	Status  string `json:"status" example:"ok"`
 	Message string `json:"message" example:"Server is running"`
 }
 
 // Helper functions for creating common error responses
-
-// NewSimpleError creates a simple error response
-func NewSimpleError(error, code, message string) SimpleErrorResponse {
-	return SimpleErrorResponse{
-		Error:   error,
-		Code:    code,
-		Message: message,
-	}
-}
 
 // NewValidationError creates a validation error response with helpful info
 func NewValidationError(errors []ValidationError) ValidationErrorResponse {
@@ -173,36 +136,22 @@ func NewConflictError(detail string, instance interface{}, action string) Confli
 	}
 }
 
-// NewUnauthorizedError creates an unauthorized error response
-func NewUnauthorizedError(detail, action string) UnauthorizedErrorResponse {
-	return UnauthorizedErrorResponse{
-		ProblemDetails: ProblemDetails{
-			Type:   "unauthorized",
-			Title:  "Authentication Failed",
-			Status: 401,
-			Detail: detail,
-		},
-		DeveloperHelp: DeveloperHelp{
-			Action: action,
-		},
-	}
-}
-
 // NewBadRequestError creates a bad request error response
-func NewBadRequestError(detail string) BadRequestErrorResponse {
-	return BadRequestErrorResponse{
+func NewBadRequestError(detail string) ErrorResponse {
+	return ErrorResponse{
 		ProblemDetails: ProblemDetails{
 			Type:   "bad_request",
 			Title:  "Bad Request",
 			Status: 400,
 			Detail: detail,
 		},
+		// No DeveloperHelp for simple bad requests
 	}
 }
 
 // NewInternalServerError creates a server error response
-func NewInternalServerError(detail string) InternalServerErrorResponse {
-	return InternalServerErrorResponse{
+func NewInternalServerError(detail string) ErrorResponse {
+	return ErrorResponse{
 		ProblemDetails: ProblemDetails{
 			Type:   "internal_server_error",
 			Title:  "Internal Server Error",
@@ -216,14 +165,15 @@ func NewInternalServerError(detail string) InternalServerErrorResponse {
 }
 
 // NewNotFoundError creates a not found error response
-func NewNotFoundError(detail string) NotFoundErrorResponse {
-	return NotFoundErrorResponse{
+func NewNotFoundError(detail string) ErrorResponse {
+	return ErrorResponse{
 		ProblemDetails: ProblemDetails{
 			Type:   "not_found",
 			Title:  "Resource Not Found",
 			Status: 404,
 			Detail: detail,
 		},
+		// No DeveloperHelp for simple not found errors
 	}
 }
 
@@ -246,8 +196,8 @@ func NewInvalidFormatError(field, expectedFormat string) ValidationErrorResponse
 }
 
 // NewForbiddenError creates a forbidden access error response
-func NewForbiddenError(detail, action string) ForbiddenErrorResponse {
-	return ForbiddenErrorResponse{
+func NewForbiddenError(detail, action string) ErrorResponse {
+	return ErrorResponse{
 		ProblemDetails: ProblemDetails{
 			Type:   "forbidden",
 			Title:  "Access Forbidden",
@@ -257,21 +207,5 @@ func NewForbiddenError(detail, action string) ForbiddenErrorResponse {
 		DeveloperHelp: DeveloperHelp{
 			Action: action,
 		},
-	}
-}
-
-// NewPaymentRequiredError creates a payment required error response
-func NewPaymentRequiredError(detail, action, pricingURL string) PaymentRequiredErrorResponse {
-	return PaymentRequiredErrorResponse{
-		ProblemDetails: ProblemDetails{
-			Type:   "payment_required",
-			Title:  "Payment Required",
-			Status: 402,
-			Detail: detail,
-		},
-		DeveloperHelp: DeveloperHelp{
-			Action: action,
-		},
-		PricingURL: pricingURL,
 	}
 }

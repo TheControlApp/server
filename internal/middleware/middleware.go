@@ -7,6 +7,7 @@ import (
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 	"github.com/sirupsen/logrus"
+	"github.com/thecontrolapp/server/internal/api/responses"
 	"github.com/thecontrolapp/server/internal/auth"
 )
 
@@ -100,12 +101,12 @@ func JWTAuth() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		token := c.GetHeader("Authorization")
 		if token == "" {
-			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "Missing token"})
+			c.AbortWithStatusJSON(http.StatusUnauthorized, responses.NewUnauthorizedError("Missing authorization token", "Include Authorization header with valid JWT token"))
 			return
 		}
 		claims, err := auth.ParseJWT(token)
 		if err != nil {
-			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "Invalid token"})
+			c.AbortWithStatusJSON(http.StatusUnauthorized, responses.NewUnauthorizedError("Invalid authorization token", "Ensure token is valid and not expired"))
 			return
 		}
 		c.Set("user_id", claims.UserID)

@@ -25,7 +25,7 @@ func NewUserHandlers(service *services.UserService) *UserHandlers {
 // @Accept       json
 // @Produce      json
 // @Success      200  {object}  responses.UsersResponse
-// @Failure      500  {object}  responses.InternalServerErrorResponse
+// @Failure      500  {object}  responses.ErrorResponse
 // @Router       /users [get]
 func (h *UserHandlers) GetUsers(c *gin.Context) {
 	users, err := h.Service.GetAllUsers()
@@ -45,7 +45,7 @@ func (h *UserHandlers) GetUsers(c *gin.Context) {
 // @Param        id path string true "User ID"
 // @Success      200  {object}  responses.UserResponse
 // @Failure      400  {object}  responses.ValidationErrorResponse
-// @Failure      404  {object}  responses.NotFoundErrorResponse
+// @Failure      404  {object}  responses.ErrorResponse
 // @Router       /users/{id} [get]
 func (h *UserHandlers) GetUserByID(c *gin.Context) {
 	id := c.Param("id")

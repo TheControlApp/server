@@ -27,7 +27,7 @@ func NewCommandHandlers(service *services.CommandService) *CommandHandlers {
 // @Param        user_id query string true "User ID"
 // @Success      200  {object}  responses.CommandsResponse
 // @Failure      400  {object}  responses.ValidationErrorResponse
-// @Failure      500  {object}  responses.InternalServerErrorResponse
+// @Failure      500  {object}  responses.ErrorResponse
 // @Router       /commands/pending [get]
 func (h *CommandHandlers) GetPendingCommands(c *gin.Context) {
 	// TODO: Get user ID from JWT token
@@ -63,7 +63,7 @@ func (h *CommandHandlers) GetPendingCommands(c *gin.Context) {
 // @Param        user_id query string true "User ID"
 // @Success      200  {object}  responses.MessageResponse
 // @Failure      400  {object}  responses.ValidationErrorResponse
-// @Failure      500  {object}  responses.InternalServerErrorResponse
+// @Failure      500  {object}  responses.ErrorResponse
 // @Router       /commands/complete [post]
 func (h *CommandHandlers) CompleteCommand(c *gin.Context) {
 	// TODO: Get user ID from JWT token
