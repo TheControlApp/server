@@ -40,7 +40,7 @@ type RegisterRequest struct {
 // @Success      200  {object}  responses.AuthResponse
 // @Failure      400  {object}  responses.BadRequestErrorResponse
 // @Failure      401  {object}  responses.UnauthorizedErrorResponse
-// @Failure      500  {object}  responses.ErrorResponse
+// @Failure      500  {object}  responses.InternalServerErrorResponse
 // @Router       /auth/login [post]
 func (h *AuthHandlers) Login(c *gin.Context) {
 	var req LoginRequest
@@ -61,9 +61,7 @@ func (h *AuthHandlers) Login(c *gin.Context) {
 			return
 		}
 
-		c.JSON(http.StatusInternalServerError, responses.ErrorResponse{
-			Error: "Internal server error during authentication",
-		})
+		c.JSON(http.StatusInternalServerError, responses.NewInternalServerError("Internal server error during authentication"))
 		return
 	}
 
@@ -92,7 +90,7 @@ func (h *AuthHandlers) Login(c *gin.Context) {
 // @Failure      400  {object}  responses.BadRequestErrorResponse
 // @Failure      409  {object}  responses.ConflictErrorResponse
 // @Failure      422  {object}  responses.ValidationErrorResponse
-// @Failure      500  {object}  responses.ErrorResponse
+// @Failure      500  {object}  responses.InternalServerErrorResponse
 // @Router       /auth/register [post]
 func (h *AuthHandlers) Register(c *gin.Context) {
 	var req RegisterRequest
@@ -133,9 +131,7 @@ func (h *AuthHandlers) Register(c *gin.Context) {
 		}
 
 		// Generic server error for unexpected issues
-		c.JSON(http.StatusInternalServerError, responses.ErrorResponse{
-			Error: "Internal server error during user creation",
-		})
+		c.JSON(http.StatusInternalServerError, responses.NewInternalServerError("Internal server error during user creation"))
 		return
 	}
 

@@ -118,6 +118,12 @@ type ForbiddenErrorResponse struct {
 	DeveloperHelp
 }
 
+// InternalServerErrorResponse represents internal server errors (HTTP 500)
+type InternalServerErrorResponse struct {
+	ProblemDetails
+	DeveloperHelp
+}
+
 // HealthResponse represents the health check response
 type HealthResponse struct {
 	Status  string `json:"status" example:"ok"`
@@ -195,9 +201,17 @@ func NewBadRequestError(detail string) BadRequestErrorResponse {
 }
 
 // NewInternalServerError creates a server error response
-func NewInternalServerError(detail string) ErrorResponse {
-	return ErrorResponse{
-		Error: detail,
+func NewInternalServerError(detail string) InternalServerErrorResponse {
+	return InternalServerErrorResponse{
+		ProblemDetails: ProblemDetails{
+			Type:   "internal_server_error",
+			Title:  "Internal Server Error",
+			Status: 500,
+			Detail: detail,
+		},
+		DeveloperHelp: DeveloperHelp{
+			Action: "Please try again later or contact support if the problem persists",
+		},
 	}
 }
 

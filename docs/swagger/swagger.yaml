@@ -95,13 +95,28 @@ definitions:
   responses.AuthResponse:
     properties:
       message:
-        example: Login successful
+        example: Operation completed successfully
         type: string
       token:
         example: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
         type: string
       user:
         $ref: '#/definitions/models.User'
+    type: object
+  responses.BadRequestErrorResponse:
+    properties:
+      detail:
+        example: One or more fields failed validation
+        type: string
+      status:
+        example: 422
+        type: integer
+      title:
+        example: Validation Failed
+        type: string
+      type:
+        example: validation_error
+        type: string
     type: object
   responses.CommandsResponse:
     properties:
@@ -110,16 +125,89 @@ definitions:
           $ref: '#/definitions/models.Command'
         type: array
     type: object
-  responses.ErrorResponse:
+  responses.ConflictErrorResponse:
     properties:
-      error:
-        example: Invalid request
+      action:
+        example: Please choose a different username
+        type: string
+      detail:
+        example: One or more fields failed validation
+        type: string
+      help:
+        example: Check the API documentation for field requirements
+        type: string
+      instance: {}
+      status:
+        example: 422
+        type: integer
+      title:
+        example: Validation Failed
+        type: string
+      type:
+        example: validation_error
+        type: string
+    type: object
+  responses.InternalServerErrorResponse:
+    properties:
+      action:
+        example: Please choose a different username
+        type: string
+      detail:
+        example: One or more fields failed validation
+        type: string
+      help:
+        example: Check the API documentation for field requirements
+        type: string
+      status:
+        example: 422
+        type: integer
+      title:
+        example: Validation Failed
+        type: string
+      type:
+        example: validation_error
         type: string
     type: object
   responses.MessageResponse:
     properties:
       message:
         example: Operation completed successfully
+        type: string
+    type: object
+  responses.NotFoundErrorResponse:
+    properties:
+      detail:
+        example: One or more fields failed validation
+        type: string
+      status:
+        example: 422
+        type: integer
+      title:
+        example: Validation Failed
+        type: string
+      type:
+        example: validation_error
+        type: string
+    type: object
+  responses.UnauthorizedErrorResponse:
+    properties:
+      action:
+        example: Please choose a different username
+        type: string
+      detail:
+        example: One or more fields failed validation
+        type: string
+      help:
+        example: Check the API documentation for field requirements
+        type: string
+      status:
+        example: 422
+        type: integer
+      title:
+        example: Validation Failed
+        type: string
+      type:
+        example: validation_error
         type: string
     type: object
   responses.UserResponse:
@@ -133,6 +221,43 @@ definitions:
         items:
           $ref: '#/definitions/models.User'
         type: array
+    type: object
+  responses.ValidationError:
+    properties:
+      code:
+        example: MIN_LENGTH
+        type: string
+      field:
+        example: username
+        type: string
+      message:
+        example: Username must be at least 3 characters
+        type: string
+    type: object
+  responses.ValidationErrorResponse:
+    properties:
+      action:
+        example: Please choose a different username
+        type: string
+      detail:
+        example: One or more fields failed validation
+        type: string
+      errors:
+        items:
+          $ref: '#/definitions/responses.ValidationError'
+        type: array
+      help:
+        example: Check the API documentation for field requirements
+        type: string
+      status:
+        example: 422
+        type: integer
+      title:
+        example: Validation Failed
+        type: string
+      type:
+        example: validation_error
+        type: string
     type: object
 host: localhost:8080
 info:
@@ -171,15 +296,15 @@ paths:
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/responses.ErrorResponse'
+            $ref: '#/definitions/responses.BadRequestErrorResponse'
         "401":
           description: Unauthorized
           schema:
-            $ref: '#/definitions/responses.ErrorResponse'
+            $ref: '#/definitions/responses.UnauthorizedErrorResponse'
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/responses.ErrorResponse'
+            $ref: '#/definitions/responses.InternalServerErrorResponse'
       summary: User login
       tags:
       - auth
@@ -205,11 +330,19 @@ paths:
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/responses.ErrorResponse'
+            $ref: '#/definitions/responses.BadRequestErrorResponse'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/responses.ConflictErrorResponse'
+        "422":
+          description: Unprocessable Entity
+          schema:
+            $ref: '#/definitions/responses.ValidationErrorResponse'
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/responses.ErrorResponse'
+            $ref: '#/definitions/responses.InternalServerErrorResponse'
       summary: Register a new user
       tags:
       - auth
@@ -239,11 +372,11 @@ paths:
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/responses.ErrorResponse'
+            $ref: '#/definitions/responses.ValidationErrorResponse'
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/responses.ErrorResponse'
+            $ref: '#/definitions/responses.InternalServerErrorResponse'
       summary: Mark a command as completed
       tags:
       - commands
@@ -268,11 +401,11 @@ paths:
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/responses.ErrorResponse'
+            $ref: '#/definitions/responses.ValidationErrorResponse'
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/responses.ErrorResponse'
+            $ref: '#/definitions/responses.InternalServerErrorResponse'
       summary: Get pending commands for a user
       tags:
       - commands
@@ -291,7 +424,7 @@ paths:
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/responses.ErrorResponse'
+            $ref: '#/definitions/responses.InternalServerErrorResponse'
       summary: Get all users
       tags:
       - users
@@ -316,11 +449,11 @@ paths:
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/responses.ErrorResponse'
+            $ref: '#/definitions/responses.ValidationErrorResponse'
         "404":
           description: Not Found
           schema:
-            $ref: '#/definitions/responses.ErrorResponse'
+            $ref: '#/definitions/responses.NotFoundErrorResponse'
       summary: Get a user by ID
       tags:
       - users

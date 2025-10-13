@@ -58,19 +58,19 @@ const docTemplate = `{
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/responses.ErrorResponse"
+                            "$ref": "#/definitions/responses.BadRequestErrorResponse"
                         }
                     },
                     "401": {
                         "description": "Unauthorized",
                         "schema": {
-                            "$ref": "#/definitions/responses.ErrorResponse"
+                            "$ref": "#/definitions/responses.UnauthorizedErrorResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/responses.ErrorResponse"
+                            "$ref": "#/definitions/responses.InternalServerErrorResponse"
                         }
                     }
                 }
@@ -110,13 +110,25 @@ const docTemplate = `{
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/responses.ErrorResponse"
+                            "$ref": "#/definitions/responses.BadRequestErrorResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "Conflict",
+                        "schema": {
+                            "$ref": "#/definitions/responses.ConflictErrorResponse"
+                        }
+                    },
+                    "422": {
+                        "description": "Unprocessable Entity",
+                        "schema": {
+                            "$ref": "#/definitions/responses.ValidationErrorResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/responses.ErrorResponse"
+                            "$ref": "#/definitions/responses.InternalServerErrorResponse"
                         }
                     }
                 }
@@ -161,13 +173,13 @@ const docTemplate = `{
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/responses.ErrorResponse"
+                            "$ref": "#/definitions/responses.ValidationErrorResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/responses.ErrorResponse"
+                            "$ref": "#/definitions/responses.InternalServerErrorResponse"
                         }
                     }
                 }
@@ -205,13 +217,13 @@ const docTemplate = `{
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/responses.ErrorResponse"
+                            "$ref": "#/definitions/responses.ValidationErrorResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/responses.ErrorResponse"
+                            "$ref": "#/definitions/responses.InternalServerErrorResponse"
                         }
                     }
                 }
@@ -240,7 +252,7 @@ const docTemplate = `{
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/responses.ErrorResponse"
+                            "$ref": "#/definitions/responses.InternalServerErrorResponse"
                         }
                     }
                 }
@@ -278,13 +290,13 @@ const docTemplate = `{
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/responses.ErrorResponse"
+                            "$ref": "#/definitions/responses.ValidationErrorResponse"
                         }
                     },
                     "404": {
                         "description": "Not Found",
                         "schema": {
-                            "$ref": "#/definitions/responses.ErrorResponse"
+                            "$ref": "#/definitions/responses.NotFoundErrorResponse"
                         }
                     }
                 }
@@ -435,7 +447,7 @@ const docTemplate = `{
             "properties": {
                 "message": {
                     "type": "string",
-                    "example": "Login successful"
+                    "example": "Operation completed successfully"
                 },
                 "token": {
                     "type": "string",
@@ -443,6 +455,27 @@ const docTemplate = `{
                 },
                 "user": {
                     "$ref": "#/definitions/models.User"
+                }
+            }
+        },
+        "responses.BadRequestErrorResponse": {
+            "type": "object",
+            "properties": {
+                "detail": {
+                    "type": "string",
+                    "example": "One or more fields failed validation"
+                },
+                "status": {
+                    "type": "integer",
+                    "example": 422
+                },
+                "title": {
+                    "type": "string",
+                    "example": "Validation Failed"
+                },
+                "type": {
+                    "type": "string",
+                    "example": "validation_error"
                 }
             }
         },
@@ -457,12 +490,62 @@ const docTemplate = `{
                 }
             }
         },
-        "responses.ErrorResponse": {
+        "responses.ConflictErrorResponse": {
             "type": "object",
             "properties": {
-                "error": {
+                "action": {
                     "type": "string",
-                    "example": "Invalid request"
+                    "example": "Please choose a different username"
+                },
+                "detail": {
+                    "type": "string",
+                    "example": "One or more fields failed validation"
+                },
+                "help": {
+                    "type": "string",
+                    "example": "Check the API documentation for field requirements"
+                },
+                "instance": {},
+                "status": {
+                    "type": "integer",
+                    "example": 422
+                },
+                "title": {
+                    "type": "string",
+                    "example": "Validation Failed"
+                },
+                "type": {
+                    "type": "string",
+                    "example": "validation_error"
+                }
+            }
+        },
+        "responses.InternalServerErrorResponse": {
+            "type": "object",
+            "properties": {
+                "action": {
+                    "type": "string",
+                    "example": "Please choose a different username"
+                },
+                "detail": {
+                    "type": "string",
+                    "example": "One or more fields failed validation"
+                },
+                "help": {
+                    "type": "string",
+                    "example": "Check the API documentation for field requirements"
+                },
+                "status": {
+                    "type": "integer",
+                    "example": 422
+                },
+                "title": {
+                    "type": "string",
+                    "example": "Validation Failed"
+                },
+                "type": {
+                    "type": "string",
+                    "example": "validation_error"
                 }
             }
         },
@@ -472,6 +555,56 @@ const docTemplate = `{
                 "message": {
                     "type": "string",
                     "example": "Operation completed successfully"
+                }
+            }
+        },
+        "responses.NotFoundErrorResponse": {
+            "type": "object",
+            "properties": {
+                "detail": {
+                    "type": "string",
+                    "example": "One or more fields failed validation"
+                },
+                "status": {
+                    "type": "integer",
+                    "example": 422
+                },
+                "title": {
+                    "type": "string",
+                    "example": "Validation Failed"
+                },
+                "type": {
+                    "type": "string",
+                    "example": "validation_error"
+                }
+            }
+        },
+        "responses.UnauthorizedErrorResponse": {
+            "type": "object",
+            "properties": {
+                "action": {
+                    "type": "string",
+                    "example": "Please choose a different username"
+                },
+                "detail": {
+                    "type": "string",
+                    "example": "One or more fields failed validation"
+                },
+                "help": {
+                    "type": "string",
+                    "example": "Check the API documentation for field requirements"
+                },
+                "status": {
+                    "type": "integer",
+                    "example": 422
+                },
+                "title": {
+                    "type": "string",
+                    "example": "Validation Failed"
+                },
+                "type": {
+                    "type": "string",
+                    "example": "validation_error"
                 }
             }
         },
@@ -491,6 +624,58 @@ const docTemplate = `{
                     "items": {
                         "$ref": "#/definitions/models.User"
                     }
+                }
+            }
+        },
+        "responses.ValidationError": {
+            "type": "object",
+            "properties": {
+                "code": {
+                    "type": "string",
+                    "example": "MIN_LENGTH"
+                },
+                "field": {
+                    "type": "string",
+                    "example": "username"
+                },
+                "message": {
+                    "type": "string",
+                    "example": "Username must be at least 3 characters"
+                }
+            }
+        },
+        "responses.ValidationErrorResponse": {
+            "type": "object",
+            "properties": {
+                "action": {
+                    "type": "string",
+                    "example": "Please choose a different username"
+                },
+                "detail": {
+                    "type": "string",
+                    "example": "One or more fields failed validation"
+                },
+                "errors": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/responses.ValidationError"
+                    }
+                },
+                "help": {
+                    "type": "string",
+                    "example": "Check the API documentation for field requirements"
+                },
+                "status": {
+                    "type": "integer",
+                    "example": 422
+                },
+                "title": {
+                    "type": "string",
+                    "example": "Validation Failed"
+                },
+                "type": {
+                    "type": "string",
+                    "example": "validation_error"
                 }
             }
         }
