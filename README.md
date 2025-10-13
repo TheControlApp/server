@@ -5,11 +5,41 @@ A modern, secure, and scalable rewrite of the ControlMe platform in Go, providin
 ## 🚀 Features
 
 - ✅ **Modern API**: RESTful API with JWT authentication
+- ✅ **RFC 7807 Error Handling**: Standardized, developer-friendly error responses
 - ✅ **Real-time Communication**: WebSocket support for instant messaging
 - ✅ **Secure**: Modern authentication, bcrypt password hashing, HTTPS support
+- ✅ **Interactive Documentation**: Swagger/OpenAPI documentation
 - ✅ **Scalable**: Docker-based deployment
 - ✅ **Cross-platform**: Runs on Linux, macOS, and Windows
 - ✅ **Well-tested**: Comprehensive test coverage
+
+## 🔥 New: RFC 7807 Compliant Error Handling
+
+The API now provides structured, consistent error responses following the RFC 7807 Problem Details standard:
+
+```json
+{
+  "type": "validation_error",
+  "title": "Validation Failed",
+  "status": 422,
+  "detail": "One or more fields failed validation",
+  "help": "Please check the field requirements in the API documentation",
+  "errors": [
+    {
+      "field": "username", 
+      "message": "Username must be at least 3 characters long",
+      "code": "MIN_LENGTH"
+    }
+  ]
+}
+```
+
+**Benefits for client developers:**
+- 🎯 **Consistent structure** across all error responses
+- 🛠️ **Machine-readable** error types and codes
+- 📝 **Detailed validation** errors with field-specific information
+- 🔗 **Actionable guidance** for resolving issues
+- 📖 **Complete documentation** with examples
 
 ## 📁 Project Structure
 
@@ -21,6 +51,7 @@ controlme-go/
 ├── internal/
 │   ├── api/
 │   │   ├── handlers/        # HTTP request handlers
+│   │   ├── responses/       # RFC 7807 response types
 │   │   └── routes/          # Route definitions
 │   ├── auth/                # Authentication logic
 │   ├── config/              # Configuration management
@@ -149,6 +180,8 @@ go test ./internal/api/handlers/...
 
 Base URL: `http://localhost:8080/api/v1`
 
+All endpoints return RFC 7807 compliant error responses with structured error details and optional developer help. See [docs/ERROR_RESPONSE_REFERENCE.md](docs/ERROR_RESPONSE_REFERENCE.md) for complete error handling documentation.
+
 #### Authentication
 - `POST /auth/login` - User authentication
 - `POST /auth/refresh` - Refresh JWT token
@@ -164,6 +197,16 @@ Base URL: `http://localhost:8080/api/v1`
 
 #### WebSocket
 - `WS /ws/client` - Universal WebSocket connection (all clients)
+
+## 📚 Complete Documentation
+
+For comprehensive documentation including API references, implementation guides, and examples:
+
+- **[docs/](docs/)** - Complete documentation directory
+- **[docs/COMPLETE_API_REFERENCE.md](docs/COMPLETE_API_REFERENCE.md)** - Full REST + WebSocket API documentation  
+- **[docs/ERROR_RESPONSE_REFERENCE.md](docs/ERROR_RESPONSE_REFERENCE.md)** - RFC 7807 error handling guide
+- **[docs/WEBSOCKET_IMPLEMENTATION.md](docs/WEBSOCKET_IMPLEMENTATION.md)** - WebSocket implementation guide
+- **[docs/API_SWAGGER.md](docs/API_SWAGGER.md)** - OpenAPI/Swagger documentation
 
 ## 🏗️ Architecture
 

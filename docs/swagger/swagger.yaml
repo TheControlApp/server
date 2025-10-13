@@ -103,21 +103,6 @@ definitions:
       user:
         $ref: '#/definitions/models.User'
     type: object
-  responses.BadRequestErrorResponse:
-    properties:
-      detail:
-        example: One or more fields failed validation
-        type: string
-      status:
-        example: 422
-        type: integer
-      title:
-        example: Validation Failed
-        type: string
-      type:
-        example: validation_error
-        type: string
-    type: object
   responses.CommandsResponse:
     properties:
       commands:
@@ -147,7 +132,7 @@ definitions:
         example: validation_error
         type: string
     type: object
-  responses.InternalServerErrorResponse:
+  responses.ErrorResponse:
     properties:
       action:
         example: Please choose a different username
@@ -172,42 +157,6 @@ definitions:
     properties:
       message:
         example: Operation completed successfully
-        type: string
-    type: object
-  responses.NotFoundErrorResponse:
-    properties:
-      detail:
-        example: One or more fields failed validation
-        type: string
-      status:
-        example: 422
-        type: integer
-      title:
-        example: Validation Failed
-        type: string
-      type:
-        example: validation_error
-        type: string
-    type: object
-  responses.UnauthorizedErrorResponse:
-    properties:
-      action:
-        example: Please choose a different username
-        type: string
-      detail:
-        example: One or more fields failed validation
-        type: string
-      help:
-        example: Check the API documentation for field requirements
-        type: string
-      status:
-        example: 422
-        type: integer
-      title:
-        example: Validation Failed
-        type: string
-      type:
-        example: validation_error
         type: string
     type: object
   responses.UserResponse:
@@ -296,15 +245,15 @@ paths:
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/responses.BadRequestErrorResponse'
+            $ref: '#/definitions/responses.ErrorResponse'
         "401":
           description: Unauthorized
           schema:
-            $ref: '#/definitions/responses.UnauthorizedErrorResponse'
+            $ref: '#/definitions/responses.ErrorResponse'
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/responses.InternalServerErrorResponse'
+            $ref: '#/definitions/responses.ErrorResponse'
       summary: User login
       tags:
       - auth
@@ -330,7 +279,7 @@ paths:
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/responses.BadRequestErrorResponse'
+            $ref: '#/definitions/responses.ErrorResponse'
         "409":
           description: Conflict
           schema:
@@ -342,7 +291,7 @@ paths:
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/responses.InternalServerErrorResponse'
+            $ref: '#/definitions/responses.ErrorResponse'
       summary: Register a new user
       tags:
       - auth
@@ -376,7 +325,7 @@ paths:
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/responses.InternalServerErrorResponse'
+            $ref: '#/definitions/responses.ErrorResponse'
       summary: Mark a command as completed
       tags:
       - commands
@@ -405,7 +354,7 @@ paths:
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/responses.InternalServerErrorResponse'
+            $ref: '#/definitions/responses.ErrorResponse'
       summary: Get pending commands for a user
       tags:
       - commands
@@ -424,7 +373,7 @@ paths:
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/responses.InternalServerErrorResponse'
+            $ref: '#/definitions/responses.ErrorResponse'
       summary: Get all users
       tags:
       - users
@@ -453,7 +402,7 @@ paths:
         "404":
           description: Not Found
           schema:
-            $ref: '#/definitions/responses.NotFoundErrorResponse'
+            $ref: '#/definitions/responses.ErrorResponse'
       summary: Get a user by ID
       tags:
       - users

@@ -139,6 +139,8 @@ GET /api/v1/files/download/{hash}/{filename} # File downloads
 GET /api/v1/health          # Health checks
 ```
 
+**Error Handling**: All REST endpoints return RFC 7807 compliant error responses with structured error details, validation specifics, and optional developer help. See [docs/ERROR_RESPONSE_REFERENCE.md](docs/ERROR_RESPONSE_REFERENCE.md) for complete error handling documentation.
+
 ### WebSocket Messages
 Primary communication through `/api/ws` with message types:
 - `command.*` - Command operations (create, complete, queue)

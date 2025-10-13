@@ -42,6 +42,7 @@ docker-compose up
 - **[REST API](api/rest.md)** - HTTP endpoints documentation  
 - **[Database Schema](database/schema.md)** - Data models and relationships
 - **[API Swagger](API_SWAGGER.md)** - OpenAPI documentation
+- **[Error Response Reference](ERROR_RESPONSE_REFERENCE.md)** - RFC 7807 compliant error handling guide
 
 ## Core Concepts
 - **Commands** - JSON messages with instruction arrays sent via WebSocket

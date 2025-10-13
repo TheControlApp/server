@@ -1,5 +1,52 @@
 # Complete API Reference
 
+## Error Response Format
+
+This API follows the RFC 7807 Problem Details standard for HTTP APIs. All error responses include structured information to help developers understand and handle errors effectively.
+
+### Standard Error Response Structure
+
+```json
+{
+  "type": "string",           // Error type identifier
+  "title": "string",          // Human-readable error title
+  "status": 400,              // HTTP status code
+  "detail": "string",         // Specific error description
+  "action": "string",         // Suggested action (optional)
+  "help": "string"            // Additional guidance (optional)
+}
+```
+
+### Common Error Types
+
+- `bad_request` (400) - Request is malformed or invalid
+- `unauthorized` (401) - Authentication required or failed
+- `forbidden` (403) - Access denied for authenticated user
+- `not_found` (404) - Requested resource not found
+- `validation_error` (422) - Input validation failed
+- `internal_server_error` (500) - Server encountered an error
+
+### Validation Error Response
+
+Validation errors include detailed field-level information:
+
+```json
+{
+  "type": "validation_error",
+  "title": "Validation Failed",
+  "status": 422,
+  "detail": "One or more fields failed validation",
+  "help": "Please check the field requirements in the API documentation",
+  "errors": [
+    {
+      "field": "username",
+      "message": "Username must be at least 3 characters long",
+      "code": "MIN_LENGTH"
+    }
+  ]
+}
+```
+
 ## REST API Endpoints
 
 ### Authentication
@@ -11,24 +58,34 @@ Register a new user account.
 ```json
 {
   "username": "string (required, min 3 chars)",
-  "password": "string (required, min 6 chars)",
-  "email": "string (required, valid email)"
+  "password": "string (required, min 6 chars)", 
+  "screen_name": "string (required)",
+  "random_opt_in": "boolean (optional)"
 }
 ```
 
-**Response:**
+**Success Response (201):**
 ```json
 {
-  "success": true,
-  "message": "User registered successfully",
   "user": {
-    "id": 1,
-    "username": "testuser",
-    "email": "test@example.com"
-  },
-  "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+    "id": "uuid",
+    "login_name": "testuser", 
+    "screen_name": "Test User",
+    "role": "user",
+    "random_opt_in": false,
+    "anon_cmd": false,
+    "verified": false,
+    "created_at": "2023-10-12T18:00:00Z",
+    "updated_at": "2023-10-12T18:00:00Z"
+  }
 }
 ```
+
+**Error Responses:**
+- **400 Bad Request**: Invalid JSON or missing required fields
+- **409 Conflict**: Username already exists
+- **422 Validation Error**: Field validation failed
+- **500 Internal Server Error**: Server error during registration
 
 #### POST /api/v1/auth/login
 Authenticate an existing user.
@@ -41,38 +98,98 @@ Authenticate an existing user.
 }
 ```
 
-**Response:**
+**Success Response (200):**
 ```json
 {
-  "success": true,
-  "message": "Login successful",
   "user": {
-    "id": 1,
-    "username": "testuser",
-    "email": "test@example.com"
+    "id": "uuid",
+    "login_name": "testuser",
+    "screen_name": "Test User", 
+    "role": "user",
+    "random_opt_in": false,
+    "anon_cmd": false,
+    "verified": false,
+    "created_at": "2023-10-12T18:00:00Z",
+    "updated_at": "2023-10-12T18:00:00Z"
   },
   "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
 }
 ```
 
-### Commands
+**Error Responses:**
+- **400 Bad Request**: Invalid JSON or missing required fields
+- **401 Unauthorized**: Invalid username or password  
+- **500 Internal Server Error**: Server error during authentication
 
-#### GET /api/v1/commands
-Get all commands for authenticated user.
+### Users
 
-**Headers:**
-```
-Authorization: Bearer <token>
-```
+#### GET /api/v1/users
+Get all users in the system.
 
-**Response:**
+**Success Response (200):**
 ```json
 {
-  "success": true,
+  "users": [
+    {
+      "id": "uuid",
+      "login_name": "testuser",
+      "screen_name": "Test User",
+      "role": "user", 
+      "random_opt_in": false,
+      "anon_cmd": false,
+      "verified": false,
+      "created_at": "2023-10-12T18:00:00Z",
+      "updated_at": "2023-10-12T18:00:00Z"
+    }
+  ]
+}
+```
+
+**Error Responses:**
+- **500 Internal Server Error**: Server error retrieving users
+
+#### GET /api/v1/users/{id}
+Get a specific user by ID.
+
+**Path Parameters:**
+- `id` (string, required): User UUID
+
+**Success Response (200):**
+```json
+{
+  "user": {
+    "id": "uuid",
+    "login_name": "testuser",
+    "screen_name": "Test User",
+    "role": "user",
+    "random_opt_in": false,
+    "anon_cmd": false, 
+    "verified": false,
+    "created_at": "2023-10-12T18:00:00Z",
+    "updated_at": "2023-10-12T18:00:00Z"
+  }
+}
+```
+
+**Error Responses:**
+- **422 Validation Error**: Invalid UUID format
+- **404 Not Found**: User not found
+
+### Commands
+
+#### GET /api/v1/commands/pending
+Get pending commands for a user.
+
+**Query Parameters:**
+- `user_id` (string, required): User UUID
+
+**Success Response (200):**
+```json
+{
   "commands": [
     {
-      "id": 1,
-      "name": "test_command",
+      "id": "uuid",
+      "name": "test_command", 
       "description": "A test command",
       "instructions": [
         {
@@ -82,7 +199,7 @@ Authorization: Bearer <token>
           "timeout": 30
         }
       ],
-      "user_id": 1,
+      "user_id": "uuid",
       "created_at": "2024-01-01T00:00:00Z",
       "updated_at": "2024-01-01T00:00:00Z"
     }
@@ -90,42 +207,120 @@ Authorization: Bearer <token>
 }
 ```
 
-#### POST /api/v1/commands
-Create a new command.
+**Error Responses:**
+- **422 Validation Error**: Invalid user_id format
+- **500 Internal Server Error**: Server error retrieving commands
 
-**Headers:**
-```
-Authorization: Bearer <token>
-```
+#### POST /api/v1/commands/complete
+Mark a command as completed.
 
-**Request Body:**
+**Query Parameters:**
+- `user_id` (string, required): User UUID
+- `command_id` (string, required): Command UUID
+
+**Success Response (200):**
 ```json
 {
-  "name": "string (required)",
-  "description": "string (optional)",
-  "instructions": [
+  "message": "Command completed successfully"
+}
+```
+
+**Error Responses:**
+- **422 Validation Error**: Invalid UUID format for user_id or command_id
+- **500 Internal Server Error**: Server error completing command
+
+## Health Check
+
+#### GET /health
+Check server health status.
+
+**Success Response (200):**
+```json
+{
+  "status": "ok",
+  "message": "Server is running"
+}
+```
+
+## Example Error Responses
+
+### Bad Request (400)
+```json
+{
+  "type": "bad_request",
+  "title": "Bad Request", 
+  "status": 400,
+  "detail": "Request body is not valid JSON or missing required fields"
+}
+```
+
+### Unauthorized (401)
+```json
+{
+  "type": "unauthorized",
+  "title": "Unauthorized Access",
+  "status": 401,
+  "detail": "Invalid username or password",
+  "action": "Please check your credentials and try again"
+}
+```
+
+### Validation Error (422)
+```json
+{
+  "type": "validation_error",
+  "title": "Validation Failed",
+  "status": 422,
+  "detail": "One or more fields failed validation", 
+  "help": "Please check the field requirements in the API documentation",
+  "errors": [
     {
-      "type": "shell|powershell|cmd|python|node|custom",
-      "command": "string (required)",
-      "args": ["string", "array", "optional"],
-      "timeout": 30,
-      "working_directory": "string (optional)",
-      "environment": {
-        "KEY": "value"
-      }
+      "field": "username",
+      "message": "Username must be at least 3 characters long",
+      "code": "MIN_LENGTH"
+    },
+    {
+      "field": "password", 
+      "message": "Password must be at least 6 characters long",
+      "code": "MIN_LENGTH"
     }
   ]
 }
 ```
 
-### Users
-
-#### GET /api/v1/admin/users
-Get all users (admin only).
-
-**Headers:**
+### Conflict (409)
+```json
+{
+  "type": "conflict",
+  "title": "Resource Conflict",
+  "status": 409,
+  "detail": "Username already exists",
+  "action": "Please choose a different username",
+  "instance": {
+    "username": "testuser"
+  }
+}
 ```
-Authorization: Bearer <admin_token>
+
+### Not Found (404)
+```json
+{
+  "type": "not_found",
+  "title": "Resource Not Found",
+  "status": 404,
+  "detail": "User not found"
+}
+```
+
+### Internal Server Error (500)
+```json
+{
+  "type": "internal_server_error",
+  "title": "Internal Server Error", 
+  "status": 500,
+  "detail": "Database connection failed",
+  "action": "Please try again later or contact support if the problem persists"
+}
 ```
 
 ## WebSocket API

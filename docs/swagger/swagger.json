@@ -56,19 +56,19 @@
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/responses.BadRequestErrorResponse"
+                            "$ref": "#/definitions/responses.ErrorResponse"
                         }
                     },
                     "401": {
                         "description": "Unauthorized",
                         "schema": {
-                            "$ref": "#/definitions/responses.UnauthorizedErrorResponse"
+                            "$ref": "#/definitions/responses.ErrorResponse"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/responses.InternalServerErrorResponse"
+                            "$ref": "#/definitions/responses.ErrorResponse"
                         }
                     }
                 }
@@ -108,7 +108,7 @@
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/responses.BadRequestErrorResponse"
+                            "$ref": "#/definitions/responses.ErrorResponse"
                         }
                     },
                     "409": {
@@ -126,7 +126,7 @@
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/responses.InternalServerErrorResponse"
+                            "$ref": "#/definitions/responses.ErrorResponse"
                         }
                     }
                 }
@@ -177,7 +177,7 @@
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/responses.InternalServerErrorResponse"
+                            "$ref": "#/definitions/responses.ErrorResponse"
                         }
                     }
                 }
@@ -221,7 +221,7 @@
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/responses.InternalServerErrorResponse"
+                            "$ref": "#/definitions/responses.ErrorResponse"
                         }
                     }
                 }
@@ -250,7 +250,7 @@
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/responses.InternalServerErrorResponse"
+                            "$ref": "#/definitions/responses.ErrorResponse"
                         }
                     }
                 }
@@ -294,7 +294,7 @@
                     "404": {
                         "description": "Not Found",
                         "schema": {
-                            "$ref": "#/definitions/responses.NotFoundErrorResponse"
+                            "$ref": "#/definitions/responses.ErrorResponse"
                         }
                     }
                 }
@@ -456,27 +456,6 @@
                 }
             }
         },
-        "responses.BadRequestErrorResponse": {
-            "type": "object",
-            "properties": {
-                "detail": {
-                    "type": "string",
-                    "example": "One or more fields failed validation"
-                },
-                "status": {
-                    "type": "integer",
-                    "example": 422
-                },
-                "title": {
-                    "type": "string",
-                    "example": "Validation Failed"
-                },
-                "type": {
-                    "type": "string",
-                    "example": "validation_error"
-                }
-            }
-        },
         "responses.CommandsResponse": {
             "type": "object",
             "properties": {
@@ -518,7 +497,7 @@
                 }
             }
         },
-        "responses.InternalServerErrorResponse": {
+        "responses.ErrorResponse": {
             "type": "object",
             "properties": {
                 "action": {
@@ -553,56 +532,6 @@
                 "message": {
                     "type": "string",
                     "example": "Operation completed successfully"
-                }
-            }
-        },
-        "responses.NotFoundErrorResponse": {
-            "type": "object",
-            "properties": {
-                "detail": {
-                    "type": "string",
-                    "example": "One or more fields failed validation"
-                },
-                "status": {
-                    "type": "integer",
-                    "example": 422
-                },
-                "title": {
-                    "type": "string",
-                    "example": "Validation Failed"
-                },
-                "type": {
-                    "type": "string",
-                    "example": "validation_error"
-                }
-            }
-        },
-        "responses.UnauthorizedErrorResponse": {
-            "type": "object",
-            "properties": {
-                "action": {
-                    "type": "string",
-                    "example": "Please choose a different username"
-                },
-                "detail": {
-                    "type": "string",
-                    "example": "One or more fields failed validation"
-                },
-                "help": {
-                    "type": "string",
-                    "example": "Check the API documentation for field requirements"
-                },
-                "status": {
-                    "type": "integer",
-                    "example": 422
-                },
-                "title": {
-                    "type": "string",
-                    "example": "Validation Failed"
-                },
-                "type": {
-                    "type": "string",
-                    "example": "validation_error"
                 }
             }
         },

@@ -1,12 +1,12 @@
 # ControlMe Go API - Swagger Documentation
 
-This project now includes comprehensive Swagger/OpenAPI documentation for all API endpoints.
+This project includes comprehensive Swagger/OpenAPI documentation for all API endpoints with **RFC 7807 compliant error responses**.
 
 ## 🚀 Quick Start
 
 ### 1. Start the Server
 ```bash
-# Local development
+# Local development  
 go run ./cmd/server
 
 # Or using Docker
@@ -18,12 +18,43 @@ Once the server is running, you can access the interactive Swagger documentation
 
 **🌐 [http://localhost:8080/swagger/index.html](http://localhost:8080/swagger/index.html)**
 
+## 🔥 New Features
+
+### RFC 7807 Error Responses
+All API endpoints now return standardized, structured error responses following the RFC 7807 Problem Details standard:
+
+```json
+{
+  "type": "validation_error",
+  "title": "Validation Failed", 
+  "status": 422,
+  "detail": "One or more fields failed validation",
+  "help": "Please check the field requirements in the API documentation",
+  "errors": [
+    {
+      "field": "username",
+      "message": "Username must be at least 3 characters long",
+      "code": "MIN_LENGTH" 
+    }
+  ]
+}
+```
+
+### Consistent Error Types
+- `bad_request` (400) - Malformed requests
+- `unauthorized` (401) - Authentication failures
+- `forbidden` (403) - Access denied
+- `not_found` (404) - Resource not found  
+- `validation_error` (422) - Input validation failures
+- `conflict` (409) - Resource conflicts
+- `internal_server_error` (500) - Server errors
+
 ## 📋 Available Endpoints
 
 ### Health Check
 - **GET** `/health` - Check server status
 
-### Authentication
+### Authentication  
 - **POST** `/api/v1/auth/login` - User login
 - **POST** `/api/v1/auth/register` - User registration
 

@@ -101,7 +101,11 @@ The API follows RFC 7807 Problem Details standard for consistent error reporting
 ### Server Errors (HTTP 500)
 ```json
 {
-  "error": "Internal server error during user creation"
+  "type": "internal_server_error",
+  "title": "Internal Server Error",
+  "status": 500,
+  "detail": "An unexpected error occurred while processing your request",
+  "help": "Please try again later. If the problem persists, contact support"
 }
 ```
 
