@@ -30,7 +30,7 @@ func NewUserHandlers(service *services.UserService) *UserHandlers {
 func (h *UserHandlers) GetUsers(c *gin.Context) {
 	users, err := h.Service.GetAllUsers()
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, responses.ErrorResponse{Error: "Failed to fetch users"})
+		c.JSON(http.StatusInternalServerError, responses.NewInternalServerError("Failed to fetch users"))
 		return
 	}
 	c.JSON(http.StatusOK, responses.UsersResponse{Users: users})
@@ -51,12 +51,12 @@ func (h *UserHandlers) GetUserByID(c *gin.Context) {
 	id := c.Param("id")
 	userID, err := uuid.Parse(id)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, responses.ErrorResponse{Error: "Invalid user ID"})
+		c.JSON(http.StatusBadRequest, responses.NewInvalidFormatError("id", "UUID"))
 		return
 	}
 	user, err := h.Service.GetUserByID(userID)
 	if err != nil {
-		c.JSON(http.StatusNotFound, responses.ErrorResponse{Error: "User not found"})
+		c.JSON(http.StatusNotFound, responses.NewNotFoundError("User not found"))
 		return
 	}
 	c.JSON(http.StatusOK, responses.UserResponse{User: *user})

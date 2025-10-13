@@ -1,12 +1,46 @@
 package responses
 
-import "github.com/thecontrolapp/server/internal/models"
+import (
+	"fmt"
+
+	"github.com/thecontrolapp/server/internal/models"
+)
+
+// PaymentRequiredErrorResponse represents a payment required error (HTTP 402)
+type PaymentRequiredErrorResponse struct {
+	ProblemDetails
+	DeveloperHelp
+	PricingURL string `json:"pricing_url,omitempty"`
+}
+
+// Response structures to reduce duplication
+
+// BaseResponse provides common fields for successful responses
+type BaseResponse struct {
+	Message string `json:"message,omitempty" example:"Operation completed successfully"`
+}
+
+// ProblemDetails represents RFC 7807 Problem Details base structure
+type ProblemDetails struct {
+	Type   string `json:"type" example:"validation_error"`
+	Title  string `json:"title" example:"Validation Failed"`
+	Status int    `json:"status" example:"422"`
+	Detail string `json:"detail" example:"One or more fields failed validation"`
+}
+
+// DeveloperHelp provides optional developer assistance fields
+type DeveloperHelp struct {
+	Help   string `json:"help,omitempty" example:"Check the API documentation for field requirements"`
+	Action string `json:"action,omitempty" example:"Please choose a different username"`
+}
+
+// Specific response types
 
 // AuthResponse represents the response for authentication endpoints
 type AuthResponse struct {
-	Message string      `json:"message" example:"Login successful"`
-	User    models.User `json:"user"`
-	Token   string      `json:"token,omitempty" example:"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."`
+	BaseResponse
+	User  models.User `json:"user"`
+	Token string      `json:"token,omitempty" example:"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."`
 }
 
 // UserResponse represents a single user response
@@ -26,7 +60,7 @@ type CommandsResponse struct {
 
 // MessageResponse represents a simple message response
 type MessageResponse struct {
-	Message string `json:"message" example:"Operation completed successfully"`
+	BaseResponse
 }
 
 // ErrorResponse represents a simple error response
@@ -38,7 +72,7 @@ type ErrorResponse struct {
 type ValidationError struct {
 	Field   string `json:"field" example:"username"`
 	Message string `json:"message" example:"Username must be at least 3 characters"`
-	Code    string `json:"code" example:"TOO_SHORT"`
+	Code    string `json:"code" example:"MIN_LENGTH"`
 }
 
 // SimpleErrorResponse represents a simplified error response for basic use cases
@@ -50,42 +84,38 @@ type SimpleErrorResponse struct {
 
 // ValidationErrorResponse represents validation errors for form fields (HTTP 422)
 type ValidationErrorResponse struct {
-	Type   string            `json:"type" example:"validation_error"`
-	Title  string            `json:"title" example:"Validation Failed"`
-	Status int               `json:"status" example:"422"`
-	Detail string            `json:"detail" example:"One or more fields failed validation"`
+	ProblemDetails
+	DeveloperHelp
 	Errors []ValidationError `json:"errors"`
-	// Developer-friendly addition
-	Help string `json:"help,omitempty" example:"Check the API documentation for field requirements"`
 }
 
 // ConflictErrorResponse represents resource conflict errors (HTTP 409)
 type ConflictErrorResponse struct {
-	Type     string      `json:"type" example:"conflict"`
-	Title    string      `json:"title" example:"Resource Conflict"`
-	Status   int         `json:"status" example:"409"`
-	Detail   string      `json:"detail" example:"Username already exists"`
+	ProblemDetails
+	DeveloperHelp
 	Instance interface{} `json:"instance,omitempty"`
-	// Developer-friendly addition
-	Action string `json:"action,omitempty" example:"Please choose a different username"`
 }
 
 // UnauthorizedErrorResponse represents authentication errors (HTTP 401)
 type UnauthorizedErrorResponse struct {
-	Type   string `json:"type" example:"unauthorized"`
-	Title  string `json:"title" example:"Authentication Failed"`
-	Status int    `json:"status" example:"401"`
-	Detail string `json:"detail" example:"Invalid credentials provided"`
-	// Developer-friendly addition
-	Action string `json:"action,omitempty" example:"Please check your username and password"`
+	ProblemDetails
+	DeveloperHelp
 }
 
 // BadRequestErrorResponse represents malformed request errors (HTTP 400)
 type BadRequestErrorResponse struct {
-	Type   string `json:"type" example:"bad_request"`
-	Title  string `json:"title" example:"Bad Request"`
-	Status int    `json:"status" example:"400"`
-	Detail string `json:"detail" example:"Request body is not valid JSON"`
+	ProblemDetails
+}
+
+// NotFoundErrorResponse represents not found errors (HTTP 404)
+type NotFoundErrorResponse struct {
+	ProblemDetails
+}
+
+// ForbiddenErrorResponse represents forbidden access errors (HTTP 403)
+type ForbiddenErrorResponse struct {
+	ProblemDetails
+	DeveloperHelp
 }
 
 // HealthResponse represents the health check response
@@ -108,11 +138,126 @@ func NewSimpleError(error, code, message string) SimpleErrorResponse {
 // NewValidationError creates a validation error response with helpful info
 func NewValidationError(errors []ValidationError) ValidationErrorResponse {
 	return ValidationErrorResponse{
-		Type:   "validation_error",
-		Title:  "Validation Failed",
-		Status: 422,
-		Detail: "One or more fields failed validation",
+		ProblemDetails: ProblemDetails{
+			Type:   "validation_error",
+			Title:  "Validation Failed",
+			Status: 422,
+			Detail: "One or more fields failed validation",
+		},
+		DeveloperHelp: DeveloperHelp{
+			Help: "Please check the field requirements in the API documentation",
+		},
 		Errors: errors,
-		Help:   "Please check the field requirements in the API documentation",
+	}
+}
+
+// NewConflictError creates a conflict error response
+func NewConflictError(detail string, instance interface{}, action string) ConflictErrorResponse {
+	return ConflictErrorResponse{
+		ProblemDetails: ProblemDetails{
+			Type:   "conflict",
+			Title:  "Resource Conflict",
+			Status: 409,
+			Detail: detail,
+		},
+		DeveloperHelp: DeveloperHelp{
+			Action: action,
+		},
+		Instance: instance,
+	}
+}
+
+// NewUnauthorizedError creates an unauthorized error response
+func NewUnauthorizedError(detail, action string) UnauthorizedErrorResponse {
+	return UnauthorizedErrorResponse{
+		ProblemDetails: ProblemDetails{
+			Type:   "unauthorized",
+			Title:  "Authentication Failed",
+			Status: 401,
+			Detail: detail,
+		},
+		DeveloperHelp: DeveloperHelp{
+			Action: action,
+		},
+	}
+}
+
+// NewBadRequestError creates a bad request error response
+func NewBadRequestError(detail string) BadRequestErrorResponse {
+	return BadRequestErrorResponse{
+		ProblemDetails: ProblemDetails{
+			Type:   "bad_request",
+			Title:  "Bad Request",
+			Status: 400,
+			Detail: detail,
+		},
+	}
+}
+
+// NewInternalServerError creates a server error response
+func NewInternalServerError(detail string) ErrorResponse {
+	return ErrorResponse{
+		Error: detail,
+	}
+}
+
+// NewNotFoundError creates a not found error response
+func NewNotFoundError(detail string) NotFoundErrorResponse {
+	return NotFoundErrorResponse{
+		ProblemDetails: ProblemDetails{
+			Type:   "not_found",
+			Title:  "Resource Not Found",
+			Status: 404,
+			Detail: detail,
+		},
+	}
+}
+
+// NewRequiredFieldError creates a validation error for missing required fields
+func NewRequiredFieldError(field string) ValidationErrorResponse {
+	return NewValidationError([]ValidationError{{
+		Field:   field,
+		Message: fmt.Sprintf("%s is required", field),
+		Code:    "REQUIRED",
+	}})
+}
+
+// NewInvalidFormatError creates a validation error for invalid field formats
+func NewInvalidFormatError(field, expectedFormat string) ValidationErrorResponse {
+	return NewValidationError([]ValidationError{{
+		Field:   field,
+		Message: fmt.Sprintf("%s must be a valid %s", field, expectedFormat),
+		Code:    "INVALID_FORMAT",
+	}})
+}
+
+// NewForbiddenError creates a forbidden access error response
+func NewForbiddenError(detail, action string) ForbiddenErrorResponse {
+	return ForbiddenErrorResponse{
+		ProblemDetails: ProblemDetails{
+			Type:   "forbidden",
+			Title:  "Access Forbidden",
+			Status: 403,
+			Detail: detail,
+		},
+		DeveloperHelp: DeveloperHelp{
+			Action: action,
+		},
+	}
+}
+
+// NewPaymentRequiredError creates a payment required error response
+func NewPaymentRequiredError(detail, action, pricingURL string) PaymentRequiredErrorResponse {
+	return PaymentRequiredErrorResponse{
+		ProblemDetails: ProblemDetails{
+			Type:   "payment_required",
+			Title:  "Payment Required",
+			Status: 402,
+			Detail: detail,
+		},
+		DeveloperHelp: DeveloperHelp{
+			Action: action,
+		},
+		PricingURL: pricingURL,
 	}
 }

@@ -45,25 +45,19 @@ type RegisterRequest struct {
 func (h *AuthHandlers) Login(c *gin.Context) {
 	var req LoginRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, responses.BadRequestErrorResponse{
-			Type:   "bad_request",
-			Title:  "Bad Request",
-			Status: http.StatusBadRequest,
-			Detail: "Request body is not valid JSON or missing required fields",
-		})
+		c.JSON(http.StatusBadRequest, responses.NewBadRequestError(
+			"Request body is not valid JSON or missing required fields",
+		))
 		return
 	}
 
 	user, err := h.UserService.AuthenticateUser(req.Username, req.Password)
 	if err != nil {
 		if errors.Is(err, services.ErrUserNotFound) || errors.Is(err, services.ErrUnauthorized) {
-			c.JSON(http.StatusUnauthorized, responses.UnauthorizedErrorResponse{
-				Type:   "unauthorized",
-				Title:  "Authentication Failed",
-				Status: http.StatusUnauthorized,
-				Detail: "Invalid username or password",
-				Action: "Please check your credentials and try again",
-			})
+			c.JSON(http.StatusUnauthorized, responses.NewUnauthorizedError(
+				"Invalid username or password",
+				"Please check your credentials and try again",
+			))
 			return
 		}
 
@@ -75,14 +69,16 @@ func (h *AuthHandlers) Login(c *gin.Context) {
 
 	token, err := h.UserService.Auth.JWTManager.GenerateToken(user.ID)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, responses.ErrorResponse{Error: "Failed to generate authentication token"})
+		c.JSON(http.StatusInternalServerError, responses.NewInternalServerError("Failed to generate authentication token"))
 		return
 	}
 
 	c.JSON(http.StatusOK, responses.AuthResponse{
-		Message: "Login successful",
-		User:    *user,
-		Token:   token,
+		BaseResponse: responses.BaseResponse{
+			Message: "Login successful",
+		},
+		User:  *user,
+		Token: token,
 	})
 } // Register creates a new user account
 // Register godoc
@@ -101,12 +97,9 @@ func (h *AuthHandlers) Login(c *gin.Context) {
 func (h *AuthHandlers) Register(c *gin.Context) {
 	var req RegisterRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, responses.BadRequestErrorResponse{
-			Type:   "bad_request",
-			Title:  "Bad Request",
-			Status: http.StatusBadRequest,
-			Detail: "Request body is not valid JSON or missing required fields",
-		})
+		c.JSON(http.StatusBadRequest, responses.NewBadRequestError(
+			"Request body is not valid JSON or missing required fields",
+		))
 		return
 	}
 
@@ -121,31 +114,21 @@ func (h *AuthHandlers) Register(c *gin.Context) {
 	if err != nil {
 		// Check if it's a validation error
 		if validationErr, ok := err.(*services.ValidationError); ok {
-			c.JSON(http.StatusUnprocessableEntity, responses.ValidationErrorResponse{
-				Type:   "validation_error",
-				Title:  "Validation Failed",
-				Status: http.StatusUnprocessableEntity,
-				Detail: "One or more fields failed validation",
-				Errors: []responses.ValidationError{{
-					Field:   validationErr.Field,
-					Message: validationErr.Message,
-					Code:    validationErr.Code,
-				}},
-				Help: "Please check the field requirements in the API documentation",
-			})
+			c.JSON(http.StatusUnprocessableEntity, responses.NewValidationError([]responses.ValidationError{{
+				Field:   validationErr.Field,
+				Message: validationErr.Message,
+				Code:    validationErr.Code,
+			}}))
 			return
 		}
 
 		// Check if it's a conflict error
 		if conflictErr, ok := err.(*services.ConflictError); ok {
-			c.JSON(http.StatusConflict, responses.ConflictErrorResponse{
-				Type:     "conflict",
-				Title:    "Resource Conflict",
-				Status:   http.StatusConflict,
-				Detail:   conflictErr.Message,
-				Instance: map[string]string{conflictErr.Resource: conflictErr.Value},
-				Action:   "Please choose a different username and try again",
-			})
+			c.JSON(http.StatusConflict, responses.NewConflictError(
+				conflictErr.Message,
+				map[string]string{conflictErr.Resource: conflictErr.Value},
+				"Please choose a different username and try again",
+			))
 			return
 		}
 

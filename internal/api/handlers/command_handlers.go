@@ -33,19 +33,19 @@ func (h *CommandHandlers) GetPendingCommands(c *gin.Context) {
 	// TODO: Get user ID from JWT token
 	userIDStr := c.Query("user_id")
 	if userIDStr == "" {
-		c.JSON(http.StatusBadRequest, responses.ErrorResponse{Error: "user_id required"})
+		c.JSON(http.StatusBadRequest, responses.NewRequiredFieldError("user_id"))
 		return
 	}
 
 	userID, err := uuid.Parse(userIDStr)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, responses.ErrorResponse{Error: "Invalid user ID"})
+		c.JSON(http.StatusBadRequest, responses.NewInvalidFormatError("user_id", "UUID"))
 		return
 	}
 
 	commands, err := h.Service.GetPendingCommands(userID)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, responses.ErrorResponse{Error: "Failed to fetch commands"})
+		c.JSON(http.StatusInternalServerError, responses.NewInternalServerError("Failed to fetch commands"))
 		return
 	}
 
@@ -69,33 +69,37 @@ func (h *CommandHandlers) CompleteCommand(c *gin.Context) {
 	// TODO: Get user ID from JWT token
 	userIDStr := c.Query("user_id")
 	if userIDStr == "" {
-		c.JSON(http.StatusBadRequest, responses.ErrorResponse{Error: "user_id required"})
+		c.JSON(http.StatusBadRequest, responses.NewRequiredFieldError("user_id"))
 		return
 	}
 
 	commandIDStr := c.Query("command_id")
 	if commandIDStr == "" {
-		c.JSON(http.StatusBadRequest, responses.ErrorResponse{Error: "command_id required"})
+		c.JSON(http.StatusBadRequest, responses.NewRequiredFieldError("command_id"))
 		return
 	}
 
 	userID, err := uuid.Parse(userIDStr)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, responses.ErrorResponse{Error: "Invalid user ID"})
+		c.JSON(http.StatusBadRequest, responses.NewInvalidFormatError("user_id", "UUID"))
 		return
 	}
 
 	commandID, err := uuid.Parse(commandIDStr)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, responses.ErrorResponse{Error: "Invalid command ID"})
+		c.JSON(http.StatusBadRequest, responses.NewInvalidFormatError("command_id", "UUID"))
 		return
 	}
 
 	err = h.Service.CompleteCommand(commandID, userID)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, responses.ErrorResponse{Error: "Failed to complete command"})
+		c.JSON(http.StatusInternalServerError, responses.NewInternalServerError("Failed to complete command"))
 		return
 	}
 
-	c.JSON(http.StatusOK, responses.MessageResponse{Message: "Command completed successfully"})
+	c.JSON(http.StatusOK, responses.MessageResponse{
+		BaseResponse: responses.BaseResponse{
+			Message: "Command completed successfully",
+		},
+	})
 }
