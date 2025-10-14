@@ -106,9 +106,28 @@ curl -X POST http://localhost:8080/api/v1/auth/login \
 - **[API Validation Results](API_VALIDATION_RESULTS.md)** - ✅ Verified documentation accuracy
 
 ### 🧪 Testing Resources
+- **[Integration Test Tool](../cmd/tools/integration-test/)** - Comprehensive API validation tool
 - **`api_test_registration.json`** - Ready-to-use registration test data
 - **`api_test_login.json`** - Ready-to-use login credentials
 - **`test_empty_registration.json`** - For testing validation errors
+
+#### Integration Testing
+
+The integration test tool validates that the server implementation matches the documentation:
+
+```bash
+# Run comprehensive API validation
+go run cmd/tools/integration-test/main.go
+```
+
+**Validates:**
+- ✅ All REST API endpoints work correctly
+- ✅ WebSocket connections and authentication
+- ✅ JWT token generation and validation  
+- ✅ RFC 7807 error response format
+- ✅ Documentation accuracy against live server
+
+This tool serves as **living documentation** - ensuring that all examples and API descriptions remain accurate as the server evolves.
 
 ## Core Concepts
 

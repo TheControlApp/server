@@ -273,7 +273,40 @@ go test -tags=integration ./...
 # TODO: Add load testing instructions
 ```
 
-## 📊 Monitoring & Logging
+## �️ Development Tools
+
+The `cmd/tools/` directory contains helpful development and testing utilities:
+
+### Integration Test Tool
+Comprehensive API validation tool that tests the server against its documentation:
+
+```bash
+# Run the integration test
+go run cmd/tools/integration-test/main.go
+```
+
+**What it tests:**
+- ✅ REST API endpoints (`/auth/register`, `/auth/login`)
+- ✅ JWT token generation and validation
+- ✅ WebSocket connections and authentication
+- ✅ RFC 7807 error response format
+- ✅ All documented authentication methods
+
+**Use cases:**
+- 🔍 Validate API changes don't break existing functionality
+- 📚 Ensure documentation stays accurate with implementation
+- 🚀 CI/CD pipeline integration for automated testing
+- 🐛 Debug authentication and WebSocket issues
+
+The tool creates test users (`test1`, `test2`) and runs a full integration test suite, providing detailed output and appropriate exit codes for automated environments.
+
+### Other Tools
+- **`test-client/`** - Interactive WebSocket client for manual testing
+- **`test-websocket-auth/`** - WebSocket authentication testing utility
+
+See individual tool README files for detailed usage instructions.
+
+## �📊 Monitoring & Logging
 
 ### Health Check
 ```bash
