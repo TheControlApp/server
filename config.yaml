@@ -6,7 +6,7 @@ environment: development
 
 # Server configuration
 server:
-  port: 8080
+  port: 3080
   host: localhost
   read_timeout: 30s
   write_timeout: 30s
@@ -69,7 +69,7 @@ cors:
   enabled: true
   allowed_origins:
     - "http://localhost:3000"
-    - "http://localhost:8080"
+    - "http://localhost:3080"
   allowed_methods:
     - "GET"
     - "POST"

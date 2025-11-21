@@ -139,7 +139,7 @@ func (tc *TestClient) Login(serverURL string) error {
 // ConnectWebSocket establishes a WebSocket connection with authentication
 func (tc *TestClient) ConnectWebSocket(wsBaseURL string) error {
 	// Connect with token in query parameter
-	u := url.URL{Scheme: "ws", Host: "localhost:8080", Path: "/ws/client"}
+	u := url.URL{Scheme: "ws", Host: "localhost:3080", Path: "/ws/client"}
 	q := u.Query()
 	q.Set("token", tc.Token)
 	u.RawQuery = q.Encode()

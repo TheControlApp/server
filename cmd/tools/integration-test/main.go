@@ -50,8 +50,8 @@ type Config struct {
 // DefaultConfig returns the default test configuration
 func DefaultConfig() *Config {
 	return &Config{
-		ServerURL: "http://localhost:8080",
-		WSBaseURL: "ws://localhost:8080",
+		ServerURL: "http://localhost:3080",
+		WSBaseURL: "ws://localhost:3080",
 		Timeout:   10 * time.Second,
 	}
 }
