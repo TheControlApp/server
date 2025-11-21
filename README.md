@@ -92,7 +92,7 @@ controlme-go/
    make dev
    ```
 
-The server will be available at `http://localhost:8080`
+The server will be available at `http://localhost:3080`
 
 ### Manual Setup (without Make)
 
@@ -136,15 +136,15 @@ make swagger-serve # Generate docs and start server
 
 The Docker Compose setup includes:
 - **PostgreSQL Database** (port 5432)
-- **Go Server** with hot reload (port 8080)
-- **Swagger UI** for API documentation (port 8080)
+- **Go Server** with hot reload (port 3080)
+- **Swagger UI** for API documentation (port 3080)
 - **Nginx** reverse proxy for production (port 80/443)
 
 #### Access Points
-- **API Server**: http://localhost:8080
-- **Built-in Swagger**: http://localhost:8080/swagger/index.html
-- **Dedicated Swagger UI**: http://localhost:8080
-- **Health Check**: http://localhost:8080/health
+- **API Server**: http://localhost:3080
+- **Built-in Swagger**: http://localhost:3080/swagger/index.html
+- **Dedicated Swagger UI**: http://localhost:3080
+- **Health Check**: http://localhost:3080/health
 
 ### Configuration
 
@@ -178,7 +178,7 @@ go test ./internal/api/handlers/...
 
 ### Modern API (v1)
 
-Base URL: `http://localhost:8080/api/v1`
+Base URL: `http://localhost:3080/api/v1`
 
 All endpoints return RFC 7807 compliant error responses with structured error details and optional developer help. See [docs/ERROR_RESPONSE_REFERENCE.md](docs/ERROR_RESPONSE_REFERENCE.md) for complete error handling documentation.
 
@@ -197,6 +197,33 @@ All endpoints return RFC 7807 compliant error responses with structured error de
 
 #### WebSocket
 - `WS /ws/client` - Universal WebSocket connection (all clients)
+
+## 🎯 Building Custom Clients
+
+ControlApp is designed to support rich 3rd party clients! Whether you're building a desktop app, mobile client, web interface, or IoT integration, we provide comprehensive resources:
+
+### 📖 **Client Development Resources**
+- **[docs/CLIENT_DEVELOPMENT_GUIDE.md](docs/CLIENT_DEVELOPMENT_GUIDE.md)** - Complete guide for building 3rd party clients
+- **[docs/STANDARD_COMMANDS.md](docs/STANDARD_COMMANDS.md)** - Official command set that all clients should support
+- **[docs/WEBSOCKET_IMPLEMENTATION.md](docs/WEBSOCKET_IMPLEMENTATION.md)** - WebSocket API implementation details
+
+### 🛠️ **Reference Implementations**
+- **JavaScript/Web** - Full-featured browser client with all standard commands
+- **Python** - Async client library perfect for automation and scripting
+- **Go** - High-performance client for system integration
+- **Examples** - Platform-specific implementations (React Native, Flutter, Desktop)
+
+### ⚡ **Quick Start for Client Developers**
+```javascript
+// Minimal client in just a few lines
+const client = new WebSocket('ws://localhost:3080/ws/client?token=your-jwt');
+client.onmessage = (event) => {
+    const message = JSON.parse(event.data);
+    if (message.type === 'command') {
+        executeCommand(message.payload);
+    }
+};
+```
 
 ## 📚 Complete Documentation
 
@@ -310,7 +337,7 @@ See individual tool README files for detailed usage instructions.
 
 ### Health Check
 ```bash
-curl http://localhost:8080/health
+curl http://localhost:3080/health
 ```
 
 ### Metrics
