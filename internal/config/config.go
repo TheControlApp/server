@@ -19,14 +19,14 @@ type Server struct {
 }
 
 type Database struct {
-	Type     string `mapstructure:"type"`      // postgres, sqlite
+	Type     string `mapstructure:"type"` // postgres, sqlite
 	Host     string `mapstructure:"host"`
 	Port     int    `mapstructure:"port"`
 	Name     string `mapstructure:"name"`
 	Username string `mapstructure:"username"`
 	Password string `mapstructure:"password"`
 	SSLMode  string `mapstructure:"sslmode"`
-	Path     string `mapstructure:"path"`      // SQLite database file path
+	Path     string `mapstructure:"path"` // SQLite database file path
 }
 
 type Auth struct {

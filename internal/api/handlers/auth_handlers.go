@@ -31,17 +31,18 @@ type RegisterRequest struct {
 
 // Login authenticates a user and returns a JWT token
 // Login godoc
-// @Summary      User login
-// @Description  Authenticates a user and returns a JWT token
-// @Tags         auth
-// @Accept       json
-// @Produce      json
-// @Param        credentials body LoginRequest true "User credentials"
-// @Success      200  {object}  responses.AuthResponse
-// @Failure      400  {object}  responses.ErrorResponse
-// @Failure      401  {object}  responses.ErrorResponse
-// @Failure      500  {object}  responses.ErrorResponse
-// @Router       /auth/login [post]
+//
+//	@Summary		User login
+//	@Description	Authenticates a user and returns a JWT token
+//	@Tags			auth
+//	@Accept			json
+//	@Produce		json
+//	@Param			credentials	body		LoginRequest	true	"User credentials"
+//	@Success		200			{object}	responses.AuthResponse
+//	@Failure		400			{object}	responses.ErrorResponse
+//	@Failure		401			{object}	responses.ErrorResponse
+//	@Failure		500			{object}	responses.ErrorResponse
+//	@Router			/auth/login [post]
 func (h *AuthHandlers) Login(c *gin.Context) {
 	var req LoginRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -80,18 +81,19 @@ func (h *AuthHandlers) Login(c *gin.Context) {
 	})
 } // Register creates a new user account
 // Register godoc
-// @Summary      Register a new user
-// @Description  Creates a new user account
-// @Tags         auth
-// @Accept       json
-// @Produce      json
-// @Param        user body RegisterRequest true "User registration details"
-// @Success      201  {object}  responses.UserResponse
-// @Failure      400  {object}  responses.ErrorResponse
-// @Failure      409  {object}  responses.ConflictErrorResponse
-// @Failure      422  {object}  responses.ValidationErrorResponse
-// @Failure      500  {object}  responses.ErrorResponse
-// @Router       /auth/register [post]
+//
+//	@Summary		Register a new user
+//	@Description	Creates a new user account
+//	@Tags			auth
+//	@Accept			json
+//	@Produce		json
+//	@Param			user	body		RegisterRequest	true	"User registration details"
+//	@Success		201		{object}	responses.UserResponse
+//	@Failure		400		{object}	responses.ErrorResponse
+//	@Failure		409		{object}	responses.ConflictErrorResponse
+//	@Failure		422		{object}	responses.ValidationErrorResponse
+//	@Failure		500		{object}	responses.ErrorResponse
+//	@Router			/auth/register [post]
 func (h *AuthHandlers) Register(c *gin.Context) {
 	var req RegisterRequest
 	if err := c.ShouldBindJSON(&req); err != nil {

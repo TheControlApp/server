@@ -19,16 +19,17 @@ func NewCommandHandlers(service *services.CommandService) *CommandHandlers {
 
 // GetPendingCommands gets pending commands for a user
 // GetPendingCommands godoc
-// @Summary      Get pending commands for a user
-// @Description  Retrieves pending commands for a given user
-// @Tags         commands
-// @Accept       json
-// @Produce      json
-// @Param        user_id query string true "User ID"
-// @Success      200  {object}  responses.CommandsResponse
-// @Failure      400  {object}  responses.ValidationErrorResponse
-// @Failure      500  {object}  responses.ErrorResponse
-// @Router       /commands/pending [get]
+//
+//	@Summary		Get pending commands for a user
+//	@Description	Retrieves pending commands for a given user
+//	@Tags			commands
+//	@Accept			json
+//	@Produce		json
+//	@Param			user_id	query		string	true	"User ID"
+//	@Success		200		{object}	responses.CommandsResponse
+//	@Failure		400		{object}	responses.ValidationErrorResponse
+//	@Failure		500		{object}	responses.ErrorResponse
+//	@Router			/commands/pending [get]
 func (h *CommandHandlers) GetPendingCommands(c *gin.Context) {
 	// TODO: Get user ID from JWT token
 	userIDStr := c.Query("user_id")
@@ -54,17 +55,18 @@ func (h *CommandHandlers) GetPendingCommands(c *gin.Context) {
 
 // CompleteCommand marks a command as completed
 // CompleteCommand godoc
-// @Summary      Mark a command as completed
-// @Description  Marks a specific command as completed
-// @Tags         commands
-// @Accept       json
-// @Produce      json
-// @Param        command_id query string true "Command ID"
-// @Param        user_id query string true "User ID"
-// @Success      200  {object}  responses.MessageResponse
-// @Failure      400  {object}  responses.ValidationErrorResponse
-// @Failure      500  {object}  responses.ErrorResponse
-// @Router       /commands/complete [post]
+//
+//	@Summary		Mark a command as completed
+//	@Description	Marks a specific command as completed
+//	@Tags			commands
+//	@Accept			json
+//	@Produce		json
+//	@Param			command_id	query		string	true	"Command ID"
+//	@Param			user_id		query		string	true	"User ID"
+//	@Success		200			{object}	responses.MessageResponse
+//	@Failure		400			{object}	responses.ValidationErrorResponse
+//	@Failure		500			{object}	responses.ErrorResponse
+//	@Router			/commands/complete [post]
 func (h *CommandHandlers) CompleteCommand(c *gin.Context) {
 	// TODO: Get user ID from JWT token
 	userIDStr := c.Query("user_id")

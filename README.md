@@ -184,16 +184,18 @@ All endpoints return RFC 7807 compliant error responses with structured error de
 
 #### Authentication
 - `POST /auth/login` - User authentication
-- `POST /auth/refresh` - Refresh JWT token
+- `POST /auth/register` - User registration
 
 #### Commands
-- `GET /commands/pending` - Get pending commands for user
+- `GET /commands/pending` - Get pending commands for user  
 - `POST /commands/complete` - Mark command as completed
-- `POST /commands/create` - Create new command
 
 #### Users
-- `GET /users/profile` - Get user profile
-- `PUT /users/profile` - Update user profile
+- `GET /users` - Get all users
+- `GET /users/{id}` - Get user by ID
+
+#### System
+- `GET /health` - Server health check
 
 #### WebSocket
 - `WS /ws/client` - Universal WebSocket connection (all clients)

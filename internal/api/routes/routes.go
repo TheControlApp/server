@@ -7,7 +7,6 @@ import (
 	swaggerFiles "github.com/swaggo/files"
 	ginSwagger "github.com/swaggo/gin-swagger"
 	"github.com/thecontrolapp/server/internal/api/handlers"
-	"github.com/thecontrolapp/server/internal/api/responses"
 	"github.com/thecontrolapp/server/internal/auth"
 	"github.com/thecontrolapp/server/internal/config"
 	"github.com/thecontrolapp/server/internal/services"
@@ -24,26 +23,14 @@ func SetupRoutes(router *gin.Engine, db *gorm.DB, hub *websocket.Hub, cfg *confi
 	commandService := services.NewCommandService(db)
 
 	// Initialize handlers
+	healthHandlers := handlers.NewHealthHandlers()
 	userHandlers := handlers.NewUserHandlers(userService)
 	authHandlers := handlers.NewAuthHandlers(userService)
 	commandHandlers := handlers.NewCommandHandlers(commandService)
 	wsHandlers := handlers.NewWebSocketHandlers(hub, authService.JWTManager, userService)
 
 	// Health check endpoint
-	// Health godoc
-	// @Summary      Health check
-	// @Description  Check if the server is running
-	// @Tags         health
-	// @Accept       json
-	// @Produce      json
-	// @Success      200  {object}  responses.HealthResponse
-	// @Router       /health [get]
-	router.GET("/health", func(c *gin.Context) {
-		c.JSON(200, responses.HealthResponse{
-			Status:  "ok",
-			Message: "Server is running",
-		})
-	})
+	router.GET("/health", healthHandlers.HealthCheck)
 
 	// Add Swagger route
 	// The URL points to the auto-generated swagger.json file.
@@ -75,14 +62,14 @@ func SetupRoutes(router *gin.Engine, db *gorm.DB, hub *websocket.Hub, cfg *confi
 
 	// WebSocket route - single endpoint for all clients
 	// WebSocket godoc
-	// @Summary      WebSocket connection endpoint
-	// @Description  Establishes WebSocket connection for real-time command distribution. Supports anonymous and authenticated connections.
-	// @Tags         websocket
-	// @Accept       json
-	// @Produce      json
-	// @Param        Authorization  header  string  false  "Bearer token for authentication"
-	// @Param        token          query   string  false  "Token for authentication via query parameter"
-	// @Success      101  {string}  string  "Switching Protocols"
-	// @Router       /ws/client [get]
+	//	@Summary		WebSocket connection endpoint
+	//	@Description	Establishes WebSocket connection for real-time command distribution. Supports anonymous and authenticated connections.
+	//	@Tags			websocket
+	//	@Accept			json
+	//	@Produce		json
+	//	@Param			Authorization	header		string	false	"Bearer token for authentication"
+	//	@Param			token			query		string	false	"Token for authentication via query parameter"
+	//	@Success		101				{string}	string	"Switching Protocols"
+	//	@Router			/ws/client [get]
 	router.GET("/ws/client", wsHandlers.HandleClientWebSocket)
 }

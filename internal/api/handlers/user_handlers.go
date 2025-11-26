@@ -19,14 +19,15 @@ func NewUserHandlers(service *services.UserService) *UserHandlers {
 
 // UserHandler provides modern RESTful user endpoints
 // GetUsers godoc
-// @Summary      Get all users
-// @Description  Retrieves a list of all users
-// @Tags         users
-// @Accept       json
-// @Produce      json
-// @Success      200  {object}  responses.UsersResponse
-// @Failure      500  {object}  responses.ErrorResponse
-// @Router       /users [get]
+//
+//	@Summary		Get all users
+//	@Description	Retrieves a list of all users
+//	@Tags			users
+//	@Accept			json
+//	@Produce		json
+//	@Success		200	{object}	responses.UsersResponse
+//	@Failure		500	{object}	responses.ErrorResponse
+//	@Router			/users [get]
 func (h *UserHandlers) GetUsers(c *gin.Context) {
 	users, err := h.Service.GetAllUsers()
 	if err != nil {
@@ -37,16 +38,17 @@ func (h *UserHandlers) GetUsers(c *gin.Context) {
 }
 
 // GetUserByID godoc
-// @Summary      Get a user by ID
-// @Description  Retrieves a user by their ID
-// @Tags         users
-// @Accept       json
-// @Produce      json
-// @Param        id path string true "User ID"
-// @Success      200  {object}  responses.UserResponse
-// @Failure      400  {object}  responses.ValidationErrorResponse
-// @Failure      404  {object}  responses.ErrorResponse
-// @Router       /users/{id} [get]
+//
+//	@Summary		Get a user by ID
+//	@Description	Retrieves a user by their ID
+//	@Tags			users
+//	@Accept			json
+//	@Produce		json
+//	@Param			id	path		string	true	"User ID"
+//	@Success		200	{object}	responses.UserResponse
+//	@Failure		400	{object}	responses.ValidationErrorResponse
+//	@Failure		404	{object}	responses.ErrorResponse
+//	@Router			/users/{id} [get]
 func (h *UserHandlers) GetUserByID(c *gin.Context) {
 	id := c.Param("id")
 	userID, err := uuid.Parse(id)
