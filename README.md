@@ -205,10 +205,9 @@ All endpoints return RFC 7807 compliant error responses with structured error de
 For comprehensive documentation including API references, implementation guides, and examples:
 
 - **[docs/](docs/)** - Complete documentation directory
-- **[docs/COMPLETE_API_REFERENCE.md](docs/COMPLETE_API_REFERENCE.md)** - Full REST + WebSocket API documentation  
+- **[docs/API-REFERENCE.md](docs/API-REFERENCE.md)** - Complete REST + WebSocket API documentation  
 - **[docs/ERROR_RESPONSE_REFERENCE.md](docs/ERROR_RESPONSE_REFERENCE.md)** - RFC 7807 error handling guide
-- **[docs/WEBSOCKET_IMPLEMENTATION.md](docs/WEBSOCKET_IMPLEMENTATION.md)** - WebSocket implementation guide
-- **[docs/API_SWAGGER.md](docs/API_SWAGGER.md)** - OpenAPI/Swagger documentation
+- **[Swagger UI](http://localhost:8080/swagger/index.html)** - Interactive API documentation
 
 ## 🏗️ Architecture
 

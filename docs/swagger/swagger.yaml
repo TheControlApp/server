@@ -1,645 +1,440 @@
-swagger: "2.0"
-info:
-  title: "ControlApp Server API"
-  description: |
-    A modern, secure, and scalable command distribution platform with real-time WebSocket communication.
-    
-    ## Features
-    - JWT-based authentication
-    - Real-time WebSocket command distribution  
-    - User management and registration
-    - Command lifecycle management
-    - RFC 7807 compliant error responses
-    
-    ## Authentication
-    Most endpoints require authentication via JWT token in the Authorization header:
-    ```
-    Authorization: Bearer <your-jwt-token>
-    ```
-    
-    ## WebSocket Connection
-    Real-time communication is available via WebSocket:
-    ```
-    ws://localhost:8080/ws/client
-    ```
-    
-    See the WebSocket API documentation for detailed protocol information.
-    
-    ## Error Handling
-    All errors follow RFC 7807 Problem Details for HTTP APIs with structured error responses including field-level validation details.
-    
-  version: "1.0.0"
-  contact:
-    name: "ControlApp API Support"
-    url: "https://github.com/TheControlApp/server"
-    email: "support@controlapp.com"
-  license:
-    name: "Apache 2.0"
-    url: "http://www.apache.org/licenses/LICENSE-2.0.html"
-  
-host: "localhost:8080"
-basePath: "/api/v1"
-schemes:
-  - http
-  - https
-
-consumes:
-  - application/json
-produces:
-  - application/json
-
-# Security definitions
-securityDefinitions:
-  BearerAuth:
-    type: apiKey
-    in: header
-    name: Authorization
-    description: |
-      JWT Authorization header using the Bearer scheme.
-      Enter 'Bearer' [space] and then your token.
-      Example: "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
-
-# Global tags
-tags:
-  - name: "health"
-    description: "System health and status endpoints"
-  - name: "auth" 
-    description: "Authentication and authorization operations"
-  - name: "users"
-    description: "User management operations"
-  - name: "commands"
-    description: "Command lifecycle management"
-  - name: "websocket"
-    description: "WebSocket connection and real-time communication"
-
-paths:
-  # Health Check
-  /health:
-    get:
-      tags: ["health"]
-      summary: "Health check"
-      description: "Check if the server is running and responsive"
-      responses:
-        200:
-          description: "Server is healthy"
-          schema:
-            $ref: "#/definitions/HealthResponse"
-        500:
-          description: "Server error"
-          schema:
-            $ref: "#/definitions/ErrorResponse"
-
-  # Authentication endpoints
-  /auth/register:
-    post:
-      tags: ["auth"]
-      summary: "Register a new user"
-      description: |
-        Create a new user account with username, password, and display name.
-        
-        **Validation Rules:**
-        - Username: 3-50 characters, no leading/trailing spaces, must be unique
-        - Password: 6-128 characters
-        - Screen name: 3-50 characters, must be unique
-        
-        **Business Rules:**
-        - Both login_name and screen_name must be unique across all users
-        - Passwords are hashed using bcrypt before storage
-        - New users have default role of "user"
-      parameters:
-        - name: "user"
-          in: "body"
-          description: "User registration details"
-          required: true
-          schema:
-            $ref: "#/definitions/RegisterRequest"
-      responses:
-        201:
-          description: "User created successfully"
-          schema:
-            $ref: "#/definitions/UserResponse"
-        400:
-          description: "Invalid request format or missing required fields"
-          schema:
-            $ref: "#/definitions/ErrorResponse"
-        409:
-          description: "Username or screen name already exists"
-          schema:
-            $ref: "#/definitions/ConflictErrorResponse"
-        422:
-          description: "Input validation failed"
-          schema:
-            $ref: "#/definitions/ValidationErrorResponse"
-        500:
-          description: "Internal server error"
-          schema:
-            $ref: "#/definitions/ErrorResponse"
-
-  /auth/login:
-    post:
-      tags: ["auth"]
-      summary: "Authenticate user"
-      description: |
-        Authenticate a user with username/password and receive a JWT token.
-        
-        **Authentication:**
-        - Accepts either login_name or screen_name as username
-        - Updates user's login_date on successful authentication
-        - Returns JWT token valid for configured duration (default 24 hours)
-        
-        **Rate Limiting:**
-        - Consider implementing rate limiting for production use
-      parameters:
-        - name: "credentials"
-          in: "body"
-          description: "User login credentials"
-          required: true
-          schema:
-            $ref: "#/definitions/LoginRequest"
-      responses:
-        200:
-          description: "Authentication successful"
-          schema:
-            $ref: "#/definitions/AuthResponse"
-        400:
-          description: "Invalid request format"
-          schema:
-            $ref: "#/definitions/ErrorResponse"
-        401:
-          description: "Invalid username or password"
-          schema:
-            $ref: "#/definitions/ErrorResponse"
-        500:
-          description: "Internal server error"
-          schema:
-            $ref: "#/definitions/ErrorResponse"
-
-  # User management endpoints
-  /users:
-    get:
-      tags: ["users"]
-      summary: "Get all users"
-      description: |
-        Retrieve a list of all users in the system.
-        
-        **Security Note:**
-        - This endpoint may need authentication/authorization in production
-        - Consider pagination for large datasets
-        - Sensitive fields like password are excluded from response
-      responses:
-        200:
-          description: "List of users retrieved successfully"
-          schema:
-            $ref: "#/definitions/UsersResponse"
-        500:
-          description: "Failed to fetch users"
-          schema:
-            $ref: "#/definitions/ErrorResponse"
-
-  /users/{id}:
-    get:
-      tags: ["users"]
-      summary: "Get user by ID"
-      description: |
-        Retrieve a specific user by their UUID.
-        
-        **Security Note:**
-        - Consider adding authorization to restrict access to user's own data
-        - Password field is automatically excluded from response
-      parameters:
-        - name: "id"
-          in: "path"
-          description: "User UUID"
-          required: true
-          type: "string"
-          format: "uuid"
-          example: "123e4567-e89b-12d3-a456-426614174000"
-      responses:
-        200:
-          description: "User retrieved successfully"
-          schema:
-            $ref: "#/definitions/UserResponse"
-        400:
-          description: "Invalid UUID format"
-          schema:
-            $ref: "#/definitions/ValidationErrorResponse"
-        404:
-          description: "User not found"
-          schema:
-            $ref: "#/definitions/ErrorResponse"
-        500:
-          description: "Internal server error"
-          schema:
-            $ref: "#/definitions/ErrorResponse"
-
-  # Command management endpoints  
-  /commands/pending:
-    get:
-      tags: ["commands"]
-      summary: "Get pending commands for user"
-      description: |
-        Retrieve all pending commands for a specific user.
-        
-        **Future Enhancement:**
-        - Add JWT authentication to extract user_id from token instead of query parameter
-        - Add pagination for large command lists
-        - Add filtering by tags or date range
-      parameters:
-        - name: "user_id"
-          in: "query"
-          description: "User UUID to get commands for"
-          required: true
-          type: "string"
-          format: "uuid"
-          example: "123e4567-e89b-12d3-a456-426614174000"
-      responses:
-        200:
-          description: "Pending commands retrieved successfully"
-          schema:
-            $ref: "#/definitions/CommandsResponse"
-        400:
-          description: "Missing or invalid user_id parameter"
-          schema:
-            $ref: "#/definitions/ValidationErrorResponse"
-        500:
-          description: "Failed to fetch commands"
-          schema:
-            $ref: "#/definitions/ErrorResponse"
-
-  /commands/complete:
-    post:
-      tags: ["commands"]
-      summary: "Mark command as completed"
-      description: |
-        Mark a specific command as completed by the receiving user.
-        
-        **Business Rules:**
-        - Only the command receiver can complete the command
-        - Command must exist and be in "pending" status
-        - Updates command status to "completed"
-        
-        **Future Enhancement:**
-        - Add JWT authentication to extract user_id from token
-        - Add command completion timestamp
-        - Add optional completion notes/feedback
-      parameters:
-        - name: "user_id"
-          in: "query"
-          description: "User UUID performing the completion"
-          required: true
-          type: "string"
-          format: "uuid"
-          example: "123e4567-e89b-12d3-a456-426614174000"
-        - name: "command_id"
-          in: "query"
-          description: "Command UUID to complete"
-          required: true
-          type: "string"
-          format: "uuid"
-          example: "123e4567-e89b-12d3-a456-426614174001"
-      responses:
-        200:
-          description: "Command completed successfully"
-          schema:
-            $ref: "#/definitions/MessageResponse"
-        400:
-          description: "Missing required parameters"
-          schema:
-            $ref: "#/definitions/ValidationErrorResponse"
-        404:
-          description: "Command not found or access denied"
-          schema:
-            $ref: "#/definitions/ErrorResponse"
-        500:
-          description: "Failed to complete command"
-          schema:
-            $ref: "#/definitions/ErrorResponse"
-
-# Data models and definitions
+basePath: /api/v1
 definitions:
-  # Request models
-  RegisterRequest:
-    type: "object"
-    required:
-      - "username"
-      - "password"
-      - "screen_name"
+  handlers.LoginRequest:
     properties:
-      username:
-        type: "string"
-        minLength: 3
-        maxLength: 50
-        description: "Unique username for login (3-50 characters)"
-        example: "john_doe"
       password:
-        type: "string"
-        minLength: 6
-        maxLength: 128
-        description: "User password (6-128 characters)"
-        example: "secure_password123"
-      screen_name:
-        type: "string"
-        minLength: 3
-        maxLength: 50
-        description: "Unique display name (3-50 characters)"
-        example: "John Doe"
+        type: string
+      username:
+        type: string
+    required:
+    - password
+    - username
+    type: object
+  handlers.RegisterRequest:
+    properties:
+      password:
+        type: string
       random_opt_in:
-        type: "boolean"
-        description: "Opt-in for receiving random commands"
-        default: false
-        example: false
-
-  LoginRequest:
-    type: "object"
-    required:
-      - "username"
-      - "password"
-    properties:
+        type: boolean
+      screen_name:
+        type: string
       username:
-        type: "string"
-        description: "Username or screen name for authentication"
-        example: "john_doe"
-      password:
-        type: "string"
-        description: "User password"
-        example: "secure_password123"
-
-  # Response models
-  HealthResponse:
-    type: "object"
+        type: string
+    required:
+    - password
+    - screen_name
+    - username
+    type: object
+  models.Command:
     properties:
-      status:
-        type: "string"
-        example: "ok"
-        description: "Health status indicator"
-      message:
-        type: "string"
-        example: "Server is running"
-        description: "Health status message"
-
-  AuthResponse:
-    type: "object"
-    properties:
-      message:
-        type: "string"
-        example: "Login successful"
-        description: "Success message"
-      user:
-        $ref: "#/definitions/User"
-      token:
-        type: "string"
-        example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
-        description: "JWT authentication token"
-
-  UserResponse:
-    type: "object"
-    properties:
-      user:
-        $ref: "#/definitions/User"
-
-  UsersResponse:
-    type: "object"
-    properties:
-      users:
-        type: "array"
+      created_at:
+        type: string
+      id:
+        type: string
+      instructions:
+        description: Array of instruction objects
         items:
-          $ref: "#/definitions/User"
-
-  CommandsResponse:
-    type: "object"
+          $ref: '#/definitions/models.Instruction'
+        type: array
+      receiver:
+        $ref: '#/definitions/models.User'
+      receiver_id:
+        description: 'Optional: specific user target'
+        type: string
+      sender:
+        allOf:
+        - $ref: '#/definitions/models.User'
+        description: Relationships - define them explicitly to avoid migration issues
+      sender_id:
+        description: User who sent the command
+        type: string
+      status:
+        description: pending, delivered, completed
+        type: string
+      tags:
+        description: JSON array of tag names for broadcast
+        type: string
+      updated_at:
+        type: string
+    type: object
+  models.Instruction:
+    properties:
+      content:
+        description: Arbitrary data - can contain any JSON structure
+      type:
+        description: The instruction type (std_popup, std_timer, etc.)
+        type: string
+    type: object
+  models.User:
+    properties:
+      anon_cmd:
+        type: boolean
+      created_at:
+        type: string
+      id:
+        type: string
+      login_date:
+        type: string
+      login_name:
+        type: string
+      random_opt_in:
+        type: boolean
+      role:
+        type: string
+      screen_name:
+        type: string
+      thumbs_up:
+        type: integer
+      updated_at:
+        type: string
+      verified:
+        type: boolean
+      verified_code:
+        type: integer
+    type: object
+  responses.AuthResponse:
+    properties:
+      message:
+        example: Operation completed successfully
+        type: string
+      token:
+        example: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+        type: string
+      user:
+        $ref: '#/definitions/models.User'
+    type: object
+  responses.CommandsResponse:
     properties:
       commands:
-        type: "array"
         items:
-          $ref: "#/definitions/Command"
-
-  MessageResponse:
-    type: "object"
+          $ref: '#/definitions/models.Command'
+        type: array
+    type: object
+  responses.ConflictErrorResponse:
     properties:
-      message:
-        type: "string"
-        example: "Operation completed successfully"
-        description: "Success message"
-
-  # Core data models
-  User:
-    type: "object"
-    properties:
-      id:
-        type: "string"
-        format: "uuid"
-        description: "Unique user identifier"
-        example: "123e4567-e89b-12d3-a456-426614174000"
-      login_name:
-        type: "string"
-        description: "Username for authentication"
-        example: "john_doe"
-      screen_name:
-        type: "string"
-        description: "Display name for user"
-        example: "John Doe"
-      role:
-        type: "string"
-        description: "User role in the system"
-        example: "user"
-        enum: ["user", "admin", "moderator"]
-      random_opt_in:
-        type: "boolean"
-        description: "User opted in for random commands"
-        example: false
-      anon_cmd:
-        type: "boolean"
-        description: "User allows anonymous commands"
-        example: false
-      verified:
-        type: "boolean"
-        description: "Account verification status"
-        example: false
-      verified_code:
-        type: "integer"
-        description: "Account verification code"
-        example: 0
-      thumbs_up:
-        type: "integer"
-        description: "User rating/score"
-        example: 0
-      created_at:
-        type: "string"
-        format: "date-time"
-        description: "Account creation timestamp"
-        example: "2025-10-12T18:00:00Z"
-      updated_at:
-        type: "string"
-        format: "date-time"
-        description: "Last update timestamp"
-        example: "2025-10-12T18:00:00Z"
-      login_date:
-        type: "string"
-        format: "date-time"
-        description: "Last login timestamp"
-        example: "2025-10-12T18:00:00Z"
-
-  Command:
-    type: "object"
-    properties:
-      id:
-        type: "string"
-        format: "uuid"
-        description: "Unique command identifier"
-        example: "123e4567-e89b-12d3-a456-426614174000"
-      instructions:
-        type: "array"
-        items:
-          $ref: "#/definitions/Instruction"
-        description: "Array of instruction objects to execute"
-      sender_id:
-        type: "string"
-        format: "uuid"
-        description: "UUID of user who sent the command"
-        example: "123e4567-e89b-12d3-a456-426614174001"
-      receiver_id:
-        type: "string"
-        format: "uuid"
-        nullable: true
-        description: "UUID of target user (null for broadcast commands)"
-        example: "123e4567-e89b-12d3-a456-426614174002"
-      tags:
-        type: "string"
-        description: "Comma-separated tags for command categorization"
-        example: "general,test"
-      status:
-        type: "string"
-        description: "Current command status"
-        example: "pending"
-        enum: ["pending", "delivered", "completed"]
-      created_at:
-        type: "string"
-        format: "date-time"
-        description: "Command creation timestamp"
-        example: "2025-10-12T18:00:00Z"
-      updated_at:
-        type: "string"
-        format: "date-time"
-        description: "Last update timestamp"
-        example: "2025-10-12T18:00:00Z"
-      sender:
-        $ref: "#/definitions/User"
-        description: "Sender user object (when preloaded)"
-      receiver:
-        $ref: "#/definitions/User"
-        description: "Receiver user object (when preloaded, null for broadcast)"
-
-  Instruction:
-    type: "object"
-    required:
-      - "type"
-      - "content"
-    properties:
-      type:
-        type: "string"
-        description: "Instruction type identifier"
-        example: "std_popup"
-        enum: 
-          - "std_popup"
-          - "std_timer"
-          - "display_text"
-          - "notification"
-          - "open_url"
-          - "download_file"
-          - "form_input"
-      content:
-        type: "object"
-        description: "Instruction-specific data (structure varies by type)"
-        example:
-          body: "This is a test message"
-          button: "OK"
-
-  # Error response models (RFC 7807 compliant)
-  ErrorResponse:
-    type: "object"
-    required:
-      - "type"
-      - "title"
-      - "status"
-      - "detail"
-    properties:
-      type:
-        type: "string"
-        description: "Error type identifier"
-        example: "bad_request"
-        enum:
-          - "bad_request"
-          - "unauthorized"
-          - "forbidden"
-          - "not_found"
-          - "conflict"
-          - "validation_error"
-          - "internal_server_error"
-      title:
-        type: "string"
-        description: "Human-readable error title"
-        example: "Bad Request"
-      status:
-        type: "integer"
-        description: "HTTP status code"
-        example: 400
-      detail:
-        type: "string"
-        description: "Specific error description"
-        example: "Request body is not valid JSON"
       action:
-        type: "string"
-        description: "Suggested action for user"
-        example: "Please check your request format and try again"
+        example: Please choose a different username
+        type: string
+      detail:
+        example: One or more fields failed validation
+        type: string
       help:
-        type: "string"
-        description: "Additional guidance or documentation reference"
-        example: "See API documentation for valid request format"
-
-  ValidationErrorResponse:
-    allOf:
-      - $ref: "#/definitions/ErrorResponse"
-      - type: "object"
-        properties:
-          errors:
-            type: "array"
-            items:
-              $ref: "#/definitions/ValidationError"
-            description: "Array of field-specific validation errors"
-
-  ValidationError:
-    type: "object"
-    required:
-      - "field"
-      - "message"
-      - "code"
+        example: Check the API documentation for field requirements
+        type: string
+      instance: {}
+      status:
+        example: 422
+        type: integer
+      title:
+        example: Validation Failed
+        type: string
+      type:
+        example: validation_error
+        type: string
+    type: object
+  responses.ErrorResponse:
     properties:
-      field:
-        type: "string"
-        description: "Field name that failed validation"
-        example: "username"
+      action:
+        example: Please choose a different username
+        type: string
+      detail:
+        example: One or more fields failed validation
+        type: string
+      help:
+        example: Check the API documentation for field requirements
+        type: string
+      status:
+        example: 422
+        type: integer
+      title:
+        example: Validation Failed
+        type: string
+      type:
+        example: validation_error
+        type: string
+    type: object
+  responses.HealthResponse:
+    properties:
       message:
-        type: "string"
-        description: "Human-readable error message"
-        example: "Username must be at least 3 characters long"
+        example: Server is running
+        type: string
+      status:
+        example: ok
+        type: string
+    type: object
+  responses.MessageResponse:
+    properties:
+      message:
+        example: Operation completed successfully
+        type: string
+    type: object
+  responses.UserResponse:
+    properties:
+      user:
+        $ref: '#/definitions/models.User'
+    type: object
+  responses.UsersResponse:
+    properties:
+      users:
+        items:
+          $ref: '#/definitions/models.User'
+        type: array
+    type: object
+  responses.ValidationError:
+    properties:
       code:
-        type: "string"
-        description: "Machine-readable error code"
-        example: "MIN_LENGTH"
-        enum:
-          - "REQUIRED"
-          - "MIN_LENGTH"
-          - "MAX_LENGTH"
-          - "INVALID_FORMAT"
-          - "DUPLICATE"
-
-  ConflictErrorResponse:
-    allOf:
-      - $ref: "#/definitions/ErrorResponse"
-      - type: "object"
-        properties:
-          instance:
-            type: "object"
-            description: "Information about the conflicting resource"
-            example:
-              username: "existing_user"
+        example: MIN_LENGTH
+        type: string
+      field:
+        example: username
+        type: string
+      message:
+        example: Username must be at least 3 characters
+        type: string
+    type: object
+  responses.ValidationErrorResponse:
+    properties:
+      action:
+        example: Please choose a different username
+        type: string
+      detail:
+        example: One or more fields failed validation
+        type: string
+      errors:
+        items:
+          $ref: '#/definitions/responses.ValidationError'
+        type: array
+      help:
+        example: Check the API documentation for field requirements
+        type: string
+      status:
+        example: 422
+        type: integer
+      title:
+        example: Validation Failed
+        type: string
+      type:
+        example: validation_error
+        type: string
+    type: object
+host: localhost:8080
+info:
+  contact:
+    email: support@swagger.io
+    name: API Support
+    url: http://www.swagger.io/support
+  description: This is a modern, secure, and scalable rewrite of the ControlMe platform
+    in Go with real-time WebSocket command distribution.
+  license:
+    name: Apache 2.0
+    url: http://www.apache.org/licenses/LICENSE-2.0.html
+  termsOfService: http://swagger.io/terms/
+  title: ControlMe Go API
+  version: "1.0"
+paths:
+  /auth/login:
+    post:
+      consumes:
+      - application/json
+      description: Authenticates a user and returns a JWT token
+      parameters:
+      - description: User credentials
+        in: body
+        name: credentials
+        required: true
+        schema:
+          $ref: '#/definitions/handlers.LoginRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/responses.AuthResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/responses.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/responses.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/responses.ErrorResponse'
+      summary: User login
+      tags:
+      - auth
+  /auth/register:
+    post:
+      consumes:
+      - application/json
+      description: Creates a new user account
+      parameters:
+      - description: User registration details
+        in: body
+        name: user
+        required: true
+        schema:
+          $ref: '#/definitions/handlers.RegisterRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/responses.UserResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/responses.ErrorResponse'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/responses.ConflictErrorResponse'
+        "422":
+          description: Unprocessable Entity
+          schema:
+            $ref: '#/definitions/responses.ValidationErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/responses.ErrorResponse'
+      summary: Register a new user
+      tags:
+      - auth
+  /commands/complete:
+    post:
+      consumes:
+      - application/json
+      description: Marks a specific command as completed
+      parameters:
+      - description: Command ID
+        in: query
+        name: command_id
+        required: true
+        type: string
+      - description: User ID
+        in: query
+        name: user_id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/responses.MessageResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/responses.ValidationErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/responses.ErrorResponse'
+      summary: Mark a command as completed
+      tags:
+      - commands
+  /commands/pending:
+    get:
+      consumes:
+      - application/json
+      description: Retrieves pending commands for a given user
+      parameters:
+      - description: User ID
+        in: query
+        name: user_id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/responses.CommandsResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/responses.ValidationErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/responses.ErrorResponse'
+      summary: Get pending commands for a user
+      tags:
+      - commands
+  /health:
+    get:
+      consumes:
+      - application/json
+      description: Check if the server is running and responsive
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/responses.HealthResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/responses.ErrorResponse'
+      summary: Health check
+      tags:
+      - health
+  /users:
+    get:
+      consumes:
+      - application/json
+      description: Retrieves a list of all users
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/responses.UsersResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/responses.ErrorResponse'
+      summary: Get all users
+      tags:
+      - users
+  /users/{id}:
+    get:
+      consumes:
+      - application/json
+      description: Retrieves a user by their ID
+      parameters:
+      - description: User ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/responses.UserResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/responses.ValidationErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/responses.ErrorResponse'
+      summary: Get a user by ID
+      tags:
+      - users
+schemes:
+- http
+- https
+swagger: "2.0"
