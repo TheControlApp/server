@@ -19,7 +19,7 @@ func main() {
 
 	// Create client with default config
 	config := client.DefaultConfig()
-	config.ServerURL = "ws://localhost:3080/ws"
+	config.ServerURL = "ws://localhost:3080/ws/client"
 
 	// Create console logger and set in config
 	config.Logger = client.NewDefaultLogger()
@@ -95,6 +95,8 @@ func handleCommand(c *client.Client, input string) error {
 		return handlePing(c)
 	case "message":
 		return handleMessage(c, args)
+	case "notify":
+		return handleNotify(c, args)
 	case "disconnect":
 		return c.Disconnect()
 	case "quit", "exit":
@@ -109,18 +111,19 @@ func handleCommand(c *client.Client, input string) error {
 func showHelp() {
 	fmt.Println("Available commands:")
 	fmt.Println("  help                     - Show this help")
-	fmt.Println("  connect [url]           - Connect to server (default: ws://localhost:3080/ws)")
+	fmt.Println("  connect [url]           - Connect to server (default: ws://localhost:3080/ws/client)")
 	fmt.Println("  login <username> <pass> - Login to server")
 	fmt.Println("  register <screen> <login> <pass> - Register new user")
 	fmt.Println("  status                  - Show connection status")
-	fmt.Println("  ping                    - Send ping command")
-	fmt.Println("  message <text>          - Send kink_message command")
+	fmt.Println("  ping                    - Send std_ping command")
+	fmt.Println("  message <text>          - Send std_message command")
+	fmt.Println("  notify <title> <text>   - Send std_notification command")
 	fmt.Println("  disconnect              - Disconnect from server")
 	fmt.Println("  quit/exit              - Exit client")
 }
 
 func handleConnect(c *client.Client, args []string) error {
-	url := "ws://localhost:3080/ws"
+	url := "ws://localhost:3080/ws/client"
 	if len(args) > 0 {
 		url = args[0]
 	}
@@ -235,10 +238,11 @@ func handleMessage(c *client.Client, args []string) error {
 
 	cmd := client.Command{
 		ID:   fmt.Sprintf("msg-%d", time.Now().UnixNano()),
-		Type: "kink_message",
+		Type: "std_message",
 		Content: map[string]interface{}{
 			"message": message,
 			"title":   "Console Test",
+			"style":   "info",
 		},
 		ReceivedAt: time.Now(),
 	}
@@ -249,5 +253,40 @@ func handleMessage(c *client.Client, args []string) error {
 	}
 
 	fmt.Println("Message sent successfully!")
+	return nil
+}
+
+func handleNotify(c *client.Client, args []string) error {
+	if len(args) < 2 {
+		return fmt.Errorf("usage: notify <title> <text>")
+	}
+
+	if !c.IsConnected() {
+		return fmt.Errorf("not connected to server")
+	}
+
+	title := args[0]
+	body := strings.Join(args[1:], " ")
+
+	fmt.Printf("Sending notification: %s - %s\n", title, body)
+
+	cmd := client.Command{
+		ID:   fmt.Sprintf("notify-%d", time.Now().UnixNano()),
+		Type: "std_notification",
+		Content: map[string]interface{}{
+			"title":    title,
+			"body":     body,
+			"icon":     "info",
+			"duration": 5,
+		},
+		ReceivedAt: time.Now(),
+	}
+
+	err := c.SendCommand(cmd)
+	if err != nil {
+		return fmt.Errorf("failed to send notification: %w", err)
+	}
+
+	fmt.Println("Notification sent successfully!")
 	return nil
 }

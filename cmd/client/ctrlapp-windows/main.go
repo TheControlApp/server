@@ -10,497 +10,594 @@ import (
 	"fyne.io/fyne/v2/app"
 	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/dialog"
+	"fyne.io/fyne/v2/driver/desktop"
 	"fyne.io/fyne/v2/widget"
 
 	"github.com/thecontrolapp/server/internal/client"
 )
 
-type App struct {
-	fyneApp  fyne.App
-	window   fyne.Window
-	client   *client.Client
-	
-	// UI Components
-	serverEntry    *widget.Entry
-	usernameEntry  *widget.Entry
-	passwordEntry  *widget.Entry
-	statusLabel    *widget.Label
-	connectBtn     *widget.Button
-	loginBtn       *widget.Button
-	disconnectBtn  *widget.Button
-	
-	// Log display
-	logArea        *widget.Entry
-	
-	// Connection state
-	connected      bool
-	authenticated  bool
+type ControlApp struct {
+	app        fyne.App
+	mainWindow fyne.Window
+	client     *client.Client
+	credStore  *client.CredentialStore
+
+	// UI state
+	isLoggedIn  bool
+	isMinimized bool
+
+	// UI components  
+	serverEntry     *widget.Entry
+	screenNameEntry *widget.Entry
+	usernameEntry   *widget.Entry
+	passwordEntry   *widget.Entry
+	statusLabel     *widget.Label
+	logArea         *widget.Entry	// System tray (Windows)
+	systray desktop.App
 }
 
 func main() {
-	myApp := app.New()
-	myApp.Metadata().Name = "ControlApp Windows Client"
-	myApp.Metadata().Version = "1.0.0"
+	myApp := app.NewWithID("com.controlapp.client")
 
-	window := myApp.NewWindow("ControlApp Client")
-	window.Resize(fyne.NewSize(800, 600))
-
-	clientApp := &App{
-		fyneApp: myApp,
-		window:  window,
+	clientApp := &ControlApp{
+		app:       myApp,
+		credStore: client.NewCredentialStore(),
 	}
 
-	clientApp.initClient()
-	clientApp.setupUI()
-	clientApp.startEventLoop()
+	// Initialize client
+	if err := clientApp.initClient(); err != nil {
+		log.Fatal("Failed to initialize client:", err)
+	}
 
-	window.ShowAndRun()
+	// Try auto-login first
+	if clientApp.tryAutoLogin() {
+		// Auto-login successful, start minimized
+		clientApp.startBackgroundMode()
+	} else {
+		// No valid credentials, show login window
+		clientApp.showLoginWindow()
+	}
+
+	myApp.Run()
 }
 
-func (a *App) initClient() {
+func (ca *ControlApp) initClient() error {
 	config := client.DefaultConfig()
-	config.ServerURL = "ws://localhost:3080/ws"
-	
-	// Enable Windows-specific kink commands
-	config.AllowedCommands = append(config.AllowedCommands, 
-		"kink_open_link",
-		"kink_download_file", 
-		"kink_play_audio",
-		"kink_tts",
-		"kink_popup_image",
-		"kink_change_wallpaper",
-	)
-	
-	config.Logger = client.NewDefaultLogger()
-	
-	a.client = client.NewClient(config)
-	
-	// Register Windows handlers for kink commands
-	a.client.RegisterWindowsHandlers()
-}
+	config.ServerURL = "ws://localhost:3080/ws/client"
 
-func (a *App) setupUI() {
-	// Connection section
-	a.serverEntry = widget.NewEntry()
-	a.serverEntry.SetText("ws://localhost:3080/ws")
-	a.serverEntry.SetPlaceHolder("Server URL")
+	// Set up supported commands for GUI client
+	config.AllowedCommands = []string{
+		// Core commands (always allowed)
+		"std_ping", "std_message", "std_notification",
 
-	a.connectBtn = widget.NewButton("Connect", a.handleConnect)
-	a.disconnectBtn = widget.NewButton("Disconnect", a.handleDisconnect)
-	a.disconnectBtn.Disable()
-
-	connectionBox := container.NewHBox(
-		widget.NewLabel("Server:"),
-		a.serverEntry,
-		a.connectBtn,
-		a.disconnectBtn,
-	)
-
-	// Authentication section
-	a.usernameEntry = widget.NewEntry()
-	a.usernameEntry.SetPlaceHolder("Username")
-	
-	a.passwordEntry = widget.NewPasswordEntry()
-	a.passwordEntry.SetPlaceHolder("Password")
-
-	a.loginBtn = widget.NewButton("Login", a.handleLogin)
-	a.loginBtn.Disable()
-
-	registerBtn := widget.NewButton("Register", a.handleRegister)
-	registerBtn.Disable()
-
-	authBox := container.NewHBox(
-		widget.NewLabel("Auth:"),
-		a.usernameEntry,
-		a.passwordEntry,
-		a.loginBtn,
-		registerBtn,
-	)
-
-	// Status section
-	a.statusLabel = widget.NewLabel("Disconnected")
-	statusBox := container.NewHBox(
-		widget.NewLabel("Status:"),
-		a.statusLabel,
-	)
-
-	// Kink command testing section
-	testBox := a.createTestCommandsBox()
-
-	// Log area
-	a.logArea = widget.NewMultiLineEntry()
-	a.logArea.SetText("=== ControlApp Windows Client Log ===\n")
-	a.logArea.Wrapping = fyne.TextWrapWord
-	logScroll := container.NewScroll(a.logArea)
-	logScroll.SetMinSize(fyne.NewSize(0, 200))
-
-	// Main layout
-	content := container.NewVBox(
-		connectionBox,
-		authBox,  
-		statusBox,
-		widget.NewSeparator(),
-		widget.NewLabel("Kink Command Testing:"),
-		testBox,
-		widget.NewSeparator(),
-		widget.NewLabel("Log:"),
-		logScroll,
-	)
-
-	a.window.SetContent(container.NewScroll(content))
-}
-
-func (a *App) createTestCommandsBox() *fyne.Container {
-	// Message test
-	messageEntry := widget.NewEntry()
-	messageEntry.SetPlaceHolder("Enter message text...")
-	messageBtn := widget.NewButton("Send Message", func() {
-		a.sendKinkMessage(messageEntry.Text)
-	})
-
-	// Link test
-	linkEntry := widget.NewEntry()
-	linkEntry.SetText("https://example.com")
-	linkBtn := widget.NewButton("Open Link", func() {
-		a.sendKinkOpenLink(linkEntry.Text)
-	})
-
-	// TTS test
-	ttsEntry := widget.NewEntry()
-	ttsEntry.SetPlaceHolder("Text to speak...")
-	ttsBtn := widget.NewButton("Speak Text", func() {
-		a.sendKinkTTS(ttsEntry.Text)
-	})
-
-	// Download test
-	downloadEntry := widget.NewEntry()
-	downloadEntry.SetText("https://httpbin.org/json")
-	downloadBtn := widget.NewButton("Download File", func() {
-		a.sendKinkDownload(downloadEntry.Text)
-	})
-
-	return container.NewVBox(
-		container.NewHBox(messageEntry, messageBtn),
-		container.NewHBox(linkEntry, linkBtn),
-		container.NewHBox(ttsEntry, ttsBtn),
-		container.NewHBox(downloadEntry, downloadBtn),
-	)
-}
-
-func (a *App) handleConnect() {
-	url := a.serverEntry.Text
-	if url == "" {
-		url = "ws://localhost:3080/ws"
+		// Standard commands (user configurable)
+		"std_open_url", "std_download_file", "std_play_audio",
+		"std_display_image", "std_timer",
 	}
 
-	a.logf("Connecting to %s...", url)
-	
+	// Commands requiring explicit consent (disabled by default)
+	config.BlockedCommands = []string{
+		"std_change_wallpaper", "std_lock_screen", "std_execute_file",
+	}
+
+	config.Logger = client.NewDefaultLogger()
+
+	ca.client = client.NewClient(config)
+
+	return nil
+}
+
+func (ca *ControlApp) tryAutoLogin() bool {
+	creds, err := ca.credStore.Load()
+	if err != nil || !ca.credStore.IsValid(creds) {
+		return false
+	}
+
+	// Try to connect and authenticate with stored credentials
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
-	go func() {
-		err := a.client.Connect(ctx, url)
-		if err != nil {
-			a.logf("Connection failed: %v", err)
-			return
-		}
-		
-		a.connected = true
-		a.updateUI()
-		a.logf("Connected successfully!")
-	}()
+	if err := ca.client.Connect(ctx, creds.ServerURL); err != nil {
+		ca.logf("Auto-login failed: connection error: %v", err)
+		return false
+	}
+
+	if err := ca.client.Login(creds.Username, creds.Token); err != nil {
+		ca.logf("Auto-login failed: authentication error: %v", err)
+		return false
+	}
+
+	ca.isLoggedIn = true
+	ca.logf("Auto-login successful for user: %s", creds.Username)
+	return true
 }
 
-func (a *App) handleDisconnect() {
-	a.logf("Disconnecting...")
-	
-	go func() {
-		err := a.client.Disconnect()
-		if err != nil {
-			a.logf("Disconnect error: %v", err)
-		}
-		
-		a.connected = false
-		a.authenticated = false
-		a.updateUI()
-		a.logf("Disconnected")
-	}()
+func (ca *ControlApp) showLoginWindow() {
+	ca.mainWindow = ca.app.NewWindow("ControlApp - Login")
+	ca.mainWindow.Resize(fyne.NewSize(500, 400))
+	ca.mainWindow.CenterOnScreen()
+
+	// Create login form
+	ca.serverEntry = widget.NewEntry()
+	ca.serverEntry.SetText("ws://localhost:3080/ws/client")
+
+	ca.screenNameEntry = widget.NewEntry()
+	ca.screenNameEntry.SetPlaceHolder("Display Name (only needed for registration)")
+
+	ca.usernameEntry = widget.NewEntry()
+	ca.usernameEntry.SetPlaceHolder("Login Username")
+
+	ca.passwordEntry = widget.NewPasswordEntry()
+	ca.passwordEntry.SetPlaceHolder("Password")
+
+	loginBtn := widget.NewButton("Login", ca.handleLogin)
+	registerBtn := widget.NewButton("Register", ca.handleRegister)
+
+	ca.statusLabel = widget.NewLabel("Enter your credentials to connect")
+
+	// Consent notice
+	consentText := widget.NewLabel("CONSENT NOTICE:\n\nBy running this application, you consent to receive and execute commands from authorized users on the connected server.\n\nYou may revoke consent at any time by closing this application.\n\nCommands may include: messages, notifications, file downloads, and other actions based on your configuration.")
+	consentText.Wrapping = fyne.TextWrapWord
+
+	// Help text
+	helpText := widget.NewLabel("• For login: Enter username and password\n• For registration: Enter display name, username, and password")
+	helpText.Wrapping = fyne.TextWrapWord
+
+	// Layout
+	form := container.NewVBox(
+		widget.NewLabel("Server Connection"),
+		ca.serverEntry,
+		widget.NewSeparator(),
+		widget.NewLabel("Authentication"),
+		helpText,
+		ca.screenNameEntry,
+		ca.usernameEntry,
+		ca.passwordEntry,
+		container.NewHBox(loginBtn, registerBtn),
+		widget.NewSeparator(),
+		ca.statusLabel,
+		widget.NewSeparator(),
+		consentText,
+	)
+
+	scroll := container.NewScroll(form)
+	ca.mainWindow.SetContent(scroll)
+
+	// Handle window close
+	ca.mainWindow.SetCloseIntercept(func() {
+		ca.app.Quit()
+	})
+
+	ca.mainWindow.Show()
 }
 
-func (a *App) handleLogin() {
-	username := a.usernameEntry.Text
-	password := a.passwordEntry.Text
+func (ca *ControlApp) handleLogin() {
+	server := ca.serverEntry.Text
+	username := ca.usernameEntry.Text
+	password := ca.passwordEntry.Text
 	
-	if username == "" || password == "" {
-		a.logf("Please enter username and password")
+	// Validation
+	if server == "" {
+		ca.statusLabel.SetText("Please enter server URL")
+		return
+	}
+	if username == "" {
+		ca.statusLabel.SetText("Please enter username")
+		return
+	}
+	if password == "" {
+		ca.statusLabel.SetText("Please enter password")
 		return
 	}
 
-	a.logf("Logging in as %s...", username)
-	
+	ca.statusLabel.SetText("Connecting...")
+
+	// Connect and login in background
 	go func() {
-		err := a.client.Login(username, password)
-		if err != nil {
-			a.logf("Login failed: %v", err)
+		ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+		defer cancel()
+
+		// Connect
+		if err := ca.client.Connect(ctx, server); err != nil {
+			fyne.Do(func() {
+				ca.statusLabel.SetText(fmt.Sprintf("Connection failed: %v", err))
+			})
 			return
 		}
-		
-		a.authenticated = true
-		a.updateUI()
-		
-		user := a.client.GetUser()
+
+		// Login
+		if err := ca.client.Login(username, password); err != nil {
+			fyne.Do(func() {
+				ca.statusLabel.SetText(fmt.Sprintf("Login failed: %v", err))
+			})
+			return
+		}
+
+		// Save credentials
+		user := ca.client.GetUser()
 		if user != nil {
-			a.logf("Logged in successfully! Welcome, %s (ID: %d)", user.ScreenName, user.ID)
-		} else {
-			a.logf("Logged in successfully!")
+			creds := &client.Credentials{
+				Token:     "temp_token", // TODO: Get actual JWT from auth response
+				Username:  username,
+				ExpiresAt: time.Now().Add(7 * 24 * time.Hour), // 1 week
+				ServerURL: server,
+			}
+			ca.credStore.Save(creds)
 		}
+
+		ca.isLoggedIn = true
+		fyne.Do(func() {
+			ca.statusLabel.SetText("Login successful! Starting background mode...")
+		})
+
+		// Wait a moment then switch to background mode
+		time.Sleep(2 * time.Second)
+		ca.startBackgroundMode()
 	}()
 }
 
-func (a *App) handleRegister() {
-	username := a.usernameEntry.Text
-	password := a.passwordEntry.Text
+func (ca *ControlApp) handleRegister() {
+	server := ca.serverEntry.Text
+	screenName := ca.screenNameEntry.Text
+	username := ca.usernameEntry.Text
+	password := ca.passwordEntry.Text
 	
-	if username == "" || password == "" {
-		a.logf("Please enter username and password")
+	// Validation
+	if server == "" {
+		ca.statusLabel.SetText("Please enter server URL")
+		return
+	}
+	if screenName == "" {
+		ca.statusLabel.SetText("Please enter display name")
+		return
+	}
+	if username == "" {
+		ca.statusLabel.SetText("Please enter username")
+		return
+	}
+	if password == "" {
+		ca.statusLabel.SetText("Please enter password")
 		return
 	}
 
-	screenName := username // Use username as screen name for simplicity
-	
-	a.logf("Registering user %s...", username)
-	
+	ca.statusLabel.SetText("Registering...")
+
+	// Connect and register in background
 	go func() {
-		err := a.client.Register(screenName, username, password)
-		if err != nil {
-			a.logf("Registration failed: %v", err)
+		ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+		defer cancel()
+
+		// Connect to server first
+		if err := ca.client.Connect(ctx, server); err != nil {
+			fyne.Do(func() {
+				ca.statusLabel.SetText(fmt.Sprintf("Connection failed: %v", err))
+			})
 			return
 		}
-		
-		a.logf("Registered successfully! User: %s", username)
+
+		// Register new user
+		if err := ca.client.Register(screenName, username, password); err != nil {
+			fyne.Do(func() {
+				ca.statusLabel.SetText(fmt.Sprintf("Registration failed: %v", err))
+			})
+			return
+		}
+
+		fyne.Do(func() {
+			ca.statusLabel.SetText("Registration successful! Now logging in...")
+		})
+
+		// After successful registration, automatically login
+		if err := ca.client.Login(username, password); err != nil {
+			fyne.Do(func() {
+				ca.statusLabel.SetText(fmt.Sprintf("Login after registration failed: %v", err))
+			})
+			return
+		}
+
+		// Save credentials for future auto-login
+		user := ca.client.GetUser()
+		if user != nil {
+			creds := &client.Credentials{
+				Token:     "temp_token", // TODO: Get actual JWT from auth response
+				Username:  username,
+				ExpiresAt: time.Now().Add(7 * 24 * time.Hour), // 1 week
+				ServerURL: server,
+			}
+			ca.credStore.Save(creds)
+		}
+
+		ca.isLoggedIn = true
+		fyne.Do(func() {
+			ca.statusLabel.SetText("Registration and login successful! Starting background mode...")
+		})
+
+		// Wait a moment then switch to background mode
+		time.Sleep(2 * time.Second)
+		ca.startBackgroundMode()
 	}()
 }
 
-func (a *App) sendKinkMessage(message string) {
-	if !a.authenticated {
-		a.logf("Must be connected and authenticated to send commands")
-		return
+func (ca *ControlApp) startBackgroundMode() {
+	// Close login window if it exists
+	if ca.mainWindow != nil {
+		ca.mainWindow.Close()
+		ca.mainWindow = nil
 	}
-	
-	if message == "" {
-		a.logf("Please enter a message")
+
+	ca.isMinimized = true
+
+	// Set up system tray (Windows-specific)
+	ca.setupSystemTray()
+
+	// Start command processing
+	ca.startEventLoop()
+
+	ca.logf("ControlApp client running in background mode")
+}
+
+func (ca *ControlApp) setupSystemTray() {
+	if desk, ok := ca.app.(desktop.App); ok {
+		ca.systray = desk
+
+		// Create system tray menu
+		menu := fyne.NewMenu("ControlApp",
+			fyne.NewMenuItem("Show Command Center", ca.showCommandCenter),
+			fyne.NewMenuItem("Settings", ca.showSettings),
+			fyne.NewMenuItemSeparator(),
+			fyne.NewMenuItem("Disconnect", ca.handleDisconnect),
+			fyne.NewMenuItem("Exit", func() { ca.app.Quit() }),
+		)
+
+		desk.SetSystemTrayMenu(menu)
+		ca.logf("System tray initialized")
+	}
+}
+
+func (ca *ControlApp) showCommandCenter() {
+	if ca.mainWindow != nil {
+		ca.mainWindow.RequestFocus()
 		return
 	}
 
-	cmd := client.Command{
-		ID:   fmt.Sprintf("msg-%d", time.Now().UnixNano()),
-		Type: "kink_message",
-		Content: map[string]interface{}{
-			"message": message,
-			"title":   "ControlApp GUI Test",
-			"style":   "info",
-		},
-		ReceivedAt: time.Now(),
+	ca.mainWindow = ca.app.NewWindow("ControlApp - Command Center")
+	ca.mainWindow.Resize(fyne.NewSize(800, 600))
+
+	// Status display
+	statusInfo := widget.NewLabel(ca.getStatusText())
+
+	// Quick command buttons
+	pingBtn := widget.NewButton("Send Ping", func() { ca.sendTestCommand("std_ping") })
+	messageBtn := widget.NewButton("Send Test Message", func() { ca.sendTestCommand("std_message") })
+	notifyBtn := widget.NewButton("Send Test Notification", func() { ca.sendTestCommand("std_notification") })
+
+	commandBox := container.NewHBox(pingBtn, messageBtn, notifyBtn)
+
+	// Log area
+	ca.logArea = widget.NewMultiLineEntry()
+	ca.logArea.SetText("=== ControlApp Command Center ===\nClient running in background mode.\n")
+	ca.logArea.Wrapping = fyne.TextWrapWord
+	logScroll := container.NewScroll(ca.logArea)
+	logScroll.SetMinSize(fyne.NewSize(0, 300))
+
+	content := container.NewVBox(
+		widget.NewLabel("ControlApp Command Center"),
+		widget.NewSeparator(),
+		statusInfo,
+		widget.NewSeparator(),
+		widget.NewLabel("Quick Commands:"),
+		commandBox,
+		widget.NewSeparator(),
+		widget.NewLabel("Activity Log:"),
+		logScroll,
+	)
+
+	ca.mainWindow.SetContent(content)
+
+	// Handle window close (minimize to tray)
+	ca.mainWindow.SetCloseIntercept(func() {
+		ca.mainWindow.Hide()
+		ca.mainWindow = nil
+	})
+
+	ca.mainWindow.Show()
+}
+
+func (ca *ControlApp) showSettings() {
+	settingsWindow := ca.app.NewWindow("ControlApp - Settings")
+	settingsWindow.Resize(fyne.NewSize(600, 500))
+
+	// Consent settings
+	consentLabel := widget.NewLabel("Command Consent Settings:")
+
+	// TODO: Create checkboxes for each command type
+	urlCheck := widget.NewCheck("Allow opening URLs", nil)
+	downloadCheck := widget.NewCheck("Allow file downloads", nil)
+	audioCheck := widget.NewCheck("Allow audio playback", nil)
+	wallpaperCheck := widget.NewCheck("Allow wallpaper changes", nil)
+
+	consentBox := container.NewVBox(
+		consentLabel,
+		urlCheck,
+		downloadCheck,
+		audioCheck,
+		wallpaperCheck,
+	)
+
+	saveBtn := widget.NewButton("Save Settings", func() {
+		// TODO: Save consent settings
+		dialog.ShowInformation("Settings", "Settings saved successfully", settingsWindow)
+	})
+
+	content := container.NewVBox(
+		widget.NewLabel("ControlApp Settings"),
+		widget.NewSeparator(),
+		consentBox,
+		widget.NewSeparator(),
+		saveBtn,
+	)
+
+	settingsWindow.SetContent(content)
+	settingsWindow.Show()
+}
+
+func (ca *ControlApp) sendTestCommand(cmdType string) {
+	if !ca.client.IsConnected() {
+		ca.logf("Cannot send command: not connected")
+		return
 	}
 
-	a.logf("Sending kink_message: %s", message)
-	
+	var cmd client.Command
+
+	switch cmdType {
+	case "std_ping":
+		cmd = client.Command{
+			ID:   fmt.Sprintf("test-ping-%d", time.Now().UnixNano()),
+			Type: "std_ping",
+			Content: map[string]interface{}{
+				"timestamp": time.Now().Format(time.RFC3339Nano),
+			},
+			ReceivedAt: time.Now(),
+		}
+	case "std_message":
+		cmd = client.Command{
+			ID:   fmt.Sprintf("test-msg-%d", time.Now().UnixNano()),
+			Type: "std_message",
+			Content: map[string]interface{}{
+				"message": "Test message from ControlApp client",
+				"title":   "Test Message",
+				"style":   "info",
+			},
+			ReceivedAt: time.Now(),
+		}
+	case "std_notification":
+		cmd = client.Command{
+			ID:   fmt.Sprintf("test-notify-%d", time.Now().UnixNano()),
+			Type: "std_notification",
+			Content: map[string]interface{}{
+				"title": "Test Notification",
+				"body":  "This is a test notification from ControlApp",
+				"icon":  "info",
+			},
+			ReceivedAt: time.Now(),
+		}
+	default:
+		ca.logf("Unknown test command type: %s", cmdType)
+		return
+	}
+
+	ca.logf("Sending test command: %s", cmdType)
+
 	go func() {
-		err := a.client.SendCommand(cmd)
-		if err != nil {
-			a.logf("Failed to send message: %v", err)
+		if err := ca.client.SendCommand(cmd); err != nil {
+			ca.logf("Failed to send %s: %v", cmdType, err)
 		} else {
-			a.logf("Message sent successfully!")
+			ca.logf("Test command %s sent successfully", cmdType)
 		}
 	}()
 }
 
-func (a *App) sendKinkOpenLink(url string) {
-	if !a.authenticated {
-		a.logf("Must be connected and authenticated to send commands")
-		return
-	}
-	
-	if url == "" {
-		a.logf("Please enter a URL")
-		return
+func (ca *ControlApp) handleDisconnect() {
+	if ca.client.IsConnected() {
+		ca.client.Disconnect()
 	}
 
-	cmd := client.Command{
-		ID:   fmt.Sprintf("link-%d", time.Now().UnixNano()),
-		Type: "kink_open_link", 
-		Content: map[string]interface{}{
-			"url": url,
-		},
-		ReceivedAt: time.Now(),
-	}
+	// Clear credentials
+	ca.credStore.Clear()
+	ca.isLoggedIn = false
 
-	a.logf("Sending kink_open_link: %s", url)
-	
-	go func() {
-		err := a.client.SendCommand(cmd)
-		if err != nil {
-			a.logf("Failed to send open link: %v", err)
-		} else {
-			a.logf("Open link sent successfully!")
-		}
-	}()
+	// Show login window again
+	ca.showLoginWindow()
 }
 
-func (a *App) sendKinkTTS(text string) {
-	if !a.authenticated {
-		a.logf("Must be connected and authenticated to send commands")
-		return
-	}
-	
-	if text == "" {
-		a.logf("Please enter text to speak")
-		return
-	}
-
-	cmd := client.Command{
-		ID:   fmt.Sprintf("tts-%d", time.Now().UnixNano()),
-		Type: "kink_tts",
-		Content: map[string]interface{}{
-			"text":   text,
-			"voice":  "default",
-			"rate":   0,
-			"volume": 80,
-		},
-		ReceivedAt: time.Now(),
-	}
-
-	a.logf("Sending kink_tts: %s", text)
-	
-	go func() {
-		err := a.client.SendCommand(cmd)
-		if err != nil {
-			a.logf("Failed to send TTS: %v", err)
-		} else {
-			a.logf("TTS sent successfully!")
-		}
-	}()
-}
-
-func (a *App) sendKinkDownload(url string) {
-	if !a.authenticated {
-		a.logf("Must be connected and authenticated to send commands")
-		return
-	}
-	
-	if url == "" {
-		a.logf("Please enter a URL to download")
-		return
-	}
-
-	cmd := client.Command{
-		ID:   fmt.Sprintf("dl-%d", time.Now().UnixNano()),
-		Type: "kink_download_file",
-		Content: map[string]interface{}{
-			"url":      url,
-			"filename": "", // Auto-generate
-		},
-		ReceivedAt: time.Now(),
-	}
-
-	a.logf("Sending kink_download_file: %s", url)
-	
-	go func() {
-		err := a.client.SendCommand(cmd)
-		if err != nil {
-			a.logf("Failed to send download: %v", err)
-		} else {
-			a.logf("Download sent successfully!")
-		}
-	}()
-}
-
-func (a *App) updateUI() {
-	if a.connected {
-		a.statusLabel.SetText("Connected")
-		a.connectBtn.Disable()
-		a.disconnectBtn.Enable()
-		a.loginBtn.Enable()
-	} else {
-		a.statusLabel.SetText("Disconnected")
-		a.connectBtn.Enable()
-		a.disconnectBtn.Disable()
-		a.loginBtn.Disable()
-	}
-
-	if a.authenticated {
-		a.statusLabel.SetText("Connected & Authenticated")
-		a.loginBtn.Disable()
-	}
-}
-
-func (a *App) startEventLoop() {
+func (ca *ControlApp) startEventLoop() {
 	go func() {
 		for {
 			select {
-			case event := <-a.client.Events():
-				a.handleEvent(event)
-			case cmd := <-a.client.Commands():
-				a.handleIncomingCommand(cmd)
-			case err := <-a.client.Errors():
-				a.logf("Client error: %v", err)
+			case event := <-ca.client.Events():
+				ca.handleEvent(event)
+			case cmd := <-ca.client.Commands():
+				ca.handleIncomingCommand(cmd)
+			case err := <-ca.client.Errors():
+				ca.logf("Client error: %v", err)
 			}
 		}
 	}()
 }
 
-func (a *App) handleEvent(event client.Event) {
+func (ca *ControlApp) handleEvent(event client.Event) {
 	switch event.Type {
 	case client.EventConnected:
-		a.logf("Event: Connected to server")
+		ca.logf("Connected to server")
 	case client.EventDisconnected:
-		a.logf("Event: Disconnected from server")
+		ca.logf("Disconnected from server")
 	case client.EventAuthenticated:
-		a.logf("Event: Authenticated successfully")
+		ca.logf("Authentication successful")
 	case client.EventCommandReceived:
-		a.logf("Event: Command received")
+		ca.logf("Command received")
 	case client.EventCommandCompleted:
-		a.logf("Event: Command completed successfully")
+		ca.logf("Command completed successfully")
 	case client.EventCommandFailed:
 		if errorMsg, ok := event.Data["error"].(string); ok {
-			a.logf("Event: Command failed - %s", errorMsg)
-		} else {
-			a.logf("Event: Command failed")
+			ca.logf("Command failed: %s", errorMsg)
 		}
 	}
 }
 
-func (a *App) handleIncomingCommand(cmd client.Command) {
-	a.logf("Received command: %s (ID: %s)", cmd.Type, cmd.ID)
-	
-	// Commands are automatically processed by the client
-	// This is just for logging/notification purposes
-	
-	// For certain commands, we might want to show user confirmation
-	if cmd.Type == "kink_run_file" || cmd.Type == "kink_lock_screen" {
-		dialog.ShowConfirm(
-			"Command Confirmation",
-			fmt.Sprintf("Allow command: %s?", cmd.Type),
-			func(confirmed bool) {
-				if confirmed {
-					a.logf("User confirmed command: %s", cmd.Type)
-				} else {
-					a.logf("User denied command: %s", cmd.Type)
-					// TODO: Send command rejection back to server
-				}
-			},
-			a.window,
-		)
+func (ca *ControlApp) handleIncomingCommand(cmd client.Command) {
+	ca.logf("Received command: %s (ID: %s)", cmd.Type, cmd.ID)
+
+	// For high-risk commands, show confirmation dialog
+	if ca.isHighRiskCommand(cmd.Type) && ca.mainWindow == nil {
+		// If no window is open, show one for confirmation
+		ca.showCommandCenter()
 	}
+
+	// Commands are automatically processed by the client
+	// This is just for logging and user awareness
 }
 
-func (a *App) logf(format string, args ...interface{}) {
+func (ca *ControlApp) isHighRiskCommand(cmdType string) bool {
+	highRisk := []string{
+		"std_execute_file", "std_lock_screen", "std_change_wallpaper",
+	}
+
+	for _, risk := range highRisk {
+		if cmdType == risk {
+			return true
+		}
+	}
+	return false
+}
+
+func (ca *ControlApp) getStatusText() string {
+	if !ca.client.IsConnected() {
+		return "Status: Disconnected"
+	}
+
+	if !ca.client.IsAuthenticated() {
+		return "Status: Connected (Not authenticated)"
+	}
+
+	user := ca.client.GetUser()
+	if user != nil {
+		return fmt.Sprintf("Status: Connected as %s (ID: %d)", user.ScreenName, user.ID)
+	}
+
+	return "Status: Connected and authenticated"
+}
+
+func (ca *ControlApp) logf(format string, args ...interface{}) {
 	timestamp := time.Now().Format("15:04:05")
-	message := fmt.Sprintf("[%s] %s\n", timestamp, fmt.Sprintf(format, args...))
-	
-	// Update log area (must be done on UI thread)
-	a.logArea.SetText(a.logArea.Text + message)
-	
-	// Also log to console
-	log.Printf(format, args...)
+	message := fmt.Sprintf("[%s] %s", timestamp, fmt.Sprintf(format, args...))
+
+	// Log to console
+	log.Println(message)
+
+	// Log to GUI if available (must be done on UI thread)
+	if ca.logArea != nil {
+		fyne.Do(func() {
+			ca.logArea.SetText(ca.logArea.Text + message + "\n")
+		})
+	}
 }
