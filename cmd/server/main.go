@@ -9,9 +9,8 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/gin-gonic/gin"
 	"github.com/sirupsen/logrus"
-	"github.com/thecontrolapp/server/internal/api/routes"
+	"github.com/thecontrolapp/server/internal/api"
 	"github.com/thecontrolapp/server/internal/config"
 	"github.com/thecontrolapp/server/internal/database"
 	"github.com/thecontrolapp/server/internal/websocket"
@@ -53,20 +52,8 @@ func main() {
 	hub := websocket.NewHub()
 	go hub.Run()
 
-	// Set Gin mode based on environment
-	if cfg.Environment == "production" {
-		gin.SetMode(gin.ReleaseMode)
-	}
-
-	// Initialize Gin router
-	router := gin.New()
-
-	// Setup middleware
-	router.Use(gin.Logger())
-	router.Use(gin.Recovery())
-
-	// Setup routes
-	routes.SetupRoutes(router, db, hub, cfg)
+	// Setup router with all routes
+	router := api.SetupRouter(db, hub, cfg)
 
 	// Setup server
 	server := &http.Server{

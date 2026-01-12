@@ -4,7 +4,7 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
-	"github.com/thecontrolapp/server/internal/api/responses"
+	"github.com/thecontrolapp/server/internal/api"
 )
 
 type HealthHandlers struct{}
@@ -25,7 +25,7 @@ func NewHealthHandlers() *HealthHandlers {
 //	@Failure		500	{object}	responses.ErrorResponse
 //	@Router			/health [get]
 func (h *HealthHandlers) HealthCheck(c *gin.Context) {
-	c.JSON(http.StatusOK, responses.HealthResponse{
+	c.JSON(http.StatusOK, api.HealthResponse{
 		Status:  "ok",
 		Message: "Server is running",
 	})
