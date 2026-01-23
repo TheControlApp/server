@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"net/url"
 	"time"
@@ -67,10 +68,11 @@ func (c *Commander) Login(username, password string) error {
 func (c *Commander) Register(screenName, loginName, password string) error {
 	registerURL := fmt.Sprintf("%s/api/v1/auth/register", c.serverURL)
 
-	registerData := map[string]string{
-		"screen_name": screenName,
-		"username":    loginName,
-		"password":    password,
+	registerData := map[string]interface{}{
+		"screen_name":   screenName,
+		"username":      loginName,
+		"password":      password,
+		"random_opt_in": false,
 	}
 
 	jsonData, err := json.Marshal(registerData)
@@ -85,7 +87,8 @@ func (c *Commander) Register(screenName, loginName, password string) error {
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusCreated {
-		return fmt.Errorf("registration failed with status: %d", resp.StatusCode)
+		body, _ := io.ReadAll(resp.Body)
+		return fmt.Errorf("registration failed with status %d: %s", resp.StatusCode, string(body))
 	}
 
 	return nil
