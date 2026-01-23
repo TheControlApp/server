@@ -153,6 +153,15 @@ definitions:
         example: validation_error
         type: string
     type: object
+  responses.HealthResponse:
+    properties:
+      message:
+        example: Server is running
+        type: string
+      status:
+        example: ok
+        type: string
+    type: object
   responses.MessageResponse:
     properties:
       message:
@@ -358,6 +367,25 @@ paths:
       summary: Get pending commands for a user
       tags:
       - commands
+  /health:
+    get:
+      consumes:
+      - application/json
+      description: Check if the server is running and responsive
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/responses.HealthResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/responses.ErrorResponse'
+      summary: Health check
+      tags:
+      - health
   /users:
     get:
       consumes:

@@ -9,9 +9,8 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/gin-gonic/gin"
 	"github.com/sirupsen/logrus"
-	"github.com/thecontrolapp/server/internal/api/routes"
+	"github.com/thecontrolapp/server/internal/api"
 	"github.com/thecontrolapp/server/internal/config"
 	"github.com/thecontrolapp/server/internal/database"
 	"github.com/thecontrolapp/server/internal/websocket"
@@ -20,18 +19,18 @@ import (
 	_ "github.com/thecontrolapp/server/docs/swagger"
 )
 
-// @title ControlMe Go API
-// @version 1.0
-// @description This is a modern, secure, and scalable rewrite of the ControlMe platform in Go with real-time WebSocket command distribution.
-// @termsOfService http://swagger.io/terms/
-// @contact.name API Support
-// @contact.url http://www.swagger.io/support
-// @contact.email support@swagger.io
-// @license.name Apache 2.0
-// @license.url http://www.apache.org/licenses/LICENSE-2.0.html
-// @host localhost:8080
-// @BasePath /api/v1
-// @schemes http https
+// @title			ControlMe Go API
+// @version		1.0
+// @description	This is a modern, secure, and scalable rewrite of the ControlMe platform in Go with real-time WebSocket command distribution.
+// @termsOfService	http://swagger.io/terms/
+// @contact.name	API Support
+// @contact.url	http://www.swagger.io/support
+// @contact.email	support@swagger.io
+// @license.name	Apache 2.0
+// @license.url	http://www.apache.org/licenses/LICENSE-2.0.html
+// @host			localhost:8080
+// @BasePath		/api/v1
+// @schemes		http https
 func main() {
 	// Initialize logger
 	logrus.SetFormatter(&logrus.JSONFormatter{})
@@ -53,20 +52,8 @@ func main() {
 	hub := websocket.NewHub()
 	go hub.Run()
 
-	// Set Gin mode based on environment
-	if cfg.Environment == "production" {
-		gin.SetMode(gin.ReleaseMode)
-	}
-
-	// Initialize Gin router
-	router := gin.New()
-
-	// Setup middleware
-	router.Use(gin.Logger())
-	router.Use(gin.Recovery())
-
-	// Setup routes
-	routes.SetupRoutes(router, db, hub, cfg)
+	// Setup router with all routes
+	router := api.SetupRouter(db, hub, cfg)
 
 	// Setup server
 	server := &http.Server{
