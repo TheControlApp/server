@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"os"
 	"strings"
 	"time"
 
@@ -66,6 +67,7 @@ type model struct {
 	commander     *Commander
 	commands      []commandItem
 	cursor        int
+	scrollOffset  int
 	viewport      viewport.Model
 	logs          []wsMessage
 	ready         bool
@@ -73,6 +75,7 @@ type model struct {
 	height        int
 	statusMessage string
 	statusIsError bool
+	logFile       *os.File
 }
 
 // Messages
@@ -143,12 +146,20 @@ func initialModel(commander *Commander) model {
 	vp := viewport.New(80, 20)
 	vp.SetContent("WebSocket Message Log\n\nWaiting for messages...")
 
+	// Open log file
+	logFile, err := os.OpenFile("test-commander.log", os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0644)
+	if err != nil {
+		logFile = nil // Continue without log file if can't open
+	}
+
 	return model{
-		commander: commander,
-		commands:  commands,
-		cursor:    0,
-		viewport:  vp,
-		logs:      []wsMessage{},
+		commander:    commander,
+		commands:     commands,
+		cursor:       0,
+		scrollOffset: 0,
+		viewport:     vp,
+		logs:         []wsMessage{},
+		logFile:      logFile,
 	}
 }
 
@@ -177,16 +188,28 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.KeyMsg:
 		switch msg.String() {
 		case "ctrl+c", "q":
+			if m.logFile != nil {
+				m.logFile.Close()
+			}
 			return m, tea.Quit
 
 		case "up", "k":
 			if m.cursor > 0 {
 				m.cursor--
+				// Adjust scroll if needed
+				if m.cursor < m.scrollOffset {
+					m.scrollOffset = m.cursor
+				}
 			}
 
 		case "down", "j":
 			if m.cursor < len(m.commands)-1 {
 				m.cursor++
+				// Adjust scroll if needed
+				visibleLines := (m.height - 8) / 2 // 2 lines per command
+				if m.cursor >= m.scrollOffset+visibleLines {
+					m.scrollOffset = m.cursor - visibleLines + 1
+				}
 			}
 
 		case "enter", " ":
@@ -229,7 +252,25 @@ func (m model) View() string {
 	var menu strings.Builder
 	menu.WriteString(titleStyle.Render("📡 Test Commander") + "\n\n")
 
-	for i, cmd := range m.commands {
+	// Calculate visible range
+	visibleLines := (m.height - 8) / 2 // 2 lines per command
+	if visibleLines < 1 {
+		visibleLines = 1
+	}
+
+	start := m.scrollOffset
+	end := start + visibleLines
+	if end > len(m.commands) {
+		end = len(m.commands)
+	}
+
+	// Show scroll indicator if needed
+	if start > 0 {
+		menu.WriteString(normalStyle.Foreground(lipgloss.Color("#666")).Render("    ▲ More above...\n"))
+	}
+
+	for i := start; i < end; i++ {
+		cmd := m.commands[i]
 		cursor := "  "
 		style := normalStyle
 
@@ -240,6 +281,10 @@ func (m model) View() string {
 
 		menu.WriteString(style.Render(fmt.Sprintf("%s%d. %s", cursor, i+1, cmd.name)) + "\n")
 		menu.WriteString(normalStyle.Foreground(lipgloss.Color("#666")).Render(fmt.Sprintf("     %s", cmd.description)) + "\n")
+	}
+
+	if end < len(m.commands) {
+		menu.WriteString(normalStyle.Foreground(lipgloss.Color("#666")).Render("    ▼ More below...\n"))
 	}
 
 	menu.WriteString("\n" + normalStyle.Render("↑/↓: Navigate • Enter: Execute • q: Quit"))
@@ -271,13 +316,23 @@ func (m model) View() string {
 }
 
 func (m *model) addLog(message string, isError bool) {
-	m.logs = append(m.logs, wsMessage{
+	logMsg := wsMessage{
 		timestamp: time.Now(),
 		data:      message,
 		isError:   isError,
-	})
+	}
+	m.logs = append(m.logs, logMsg)
 
-	// Keep only last 100 messages
+	// Write to log file
+	if m.logFile != nil {
+		logType := "INFO"
+		if isError {
+			logType = "ERROR"
+		}
+		fmt.Fprintf(m.logFile, "[%s] %s: %s\n", logMsg.timestamp.Format("2006-01-02 15:04:05"), logType, message)
+	}
+
+	// Keep only last 100 messages in memory
 	if len(m.logs) > 100 {
 		m.logs = m.logs[1:]
 	}
@@ -338,15 +393,18 @@ func sendPing(m *model) tea.Cmd {
 			Tags: "test",
 		}
 
+		m.addLog("📤 Sending command: std_ping", false)
+
 		if err := m.commander.SendCommand(cmd); err != nil {
-			return statusMsg{message: fmt.Sprintf("Failed to send ping: %v", err), isError: true}
+			m.addLog(fmt.Sprintf("❌ Failed to send ping: %v", err), true)
 		}
-		return statusMsg{message: "Ping command sent", isError: false}
+		return nil
 	}
 }
 
 func sendNotification(m *model) tea.Cmd {
 	return func() tea.Msg {
+		m.addLog("📤 Sending command: std_notification", false)
 		cmd := models.Command{
 			Instructions: []models.Instruction{
 				{
@@ -362,14 +420,15 @@ func sendNotification(m *model) tea.Cmd {
 		}
 
 		if err := m.commander.SendCommand(cmd); err != nil {
-			return statusMsg{message: fmt.Sprintf("Failed to send notification: %v", err), isError: true}
+			m.addLog(fmt.Sprintf("❌ Failed to send notification: %v", err), true)
 		}
-		return statusMsg{message: "Notification sent", isError: false}
+		return nil
 	}
 }
 
 func sendPopup(m *model) tea.Cmd {
 	return func() tea.Msg {
+		m.addLog("📤 Sending command: std_popup", false)
 		cmd := models.Command{
 			Instructions: []models.Instruction{
 				{
@@ -385,14 +444,15 @@ func sendPopup(m *model) tea.Cmd {
 		}
 
 		if err := m.commander.SendCommand(cmd); err != nil {
-			return statusMsg{message: fmt.Sprintf("Failed: %v", err), isError: true}
+			m.addLog(fmt.Sprintf("❌ Failed to send popup: %v", err), true)
 		}
-		return statusMsg{message: "Popup sent", isError: false}
+		return nil
 	}
 }
 
 func sendDisplayText(m *model) tea.Cmd {
 	return func() tea.Msg {
+		m.addLog("📤 Sending command: std_display_text", false)
 		cmd := models.Command{
 			Instructions: []models.Instruction{
 				{
@@ -408,14 +468,15 @@ func sendDisplayText(m *model) tea.Cmd {
 		}
 
 		if err := m.commander.SendCommand(cmd); err != nil {
-			return statusMsg{message: fmt.Sprintf("Failed: %v", err), isError: true}
+			m.addLog(fmt.Sprintf("❌ Failed to send display text: %v", err), true)
 		}
-		return statusMsg{message: "Display text sent", isError: false}
+		return nil
 	}
 }
 
 func sendTimer(m *model) tea.Cmd {
 	return func() tea.Msg {
+		m.addLog("📤 Sending command: std_timer", false)
 		cmd := models.Command{
 			Instructions: []models.Instruction{
 				{
@@ -431,14 +492,15 @@ func sendTimer(m *model) tea.Cmd {
 		}
 
 		if err := m.commander.SendCommand(cmd); err != nil {
-			return statusMsg{message: fmt.Sprintf("Failed: %v", err), isError: true}
+			m.addLog(fmt.Sprintf("❌ Failed to send timer: %v", err), true)
 		}
-		return statusMsg{message: "Timer started", isError: false}
+		return nil
 	}
 }
 
 func sendChoice(m *model) tea.Cmd {
 	return func() tea.Msg {
+		m.addLog("📤 Sending command: std_choice", false)
 		cmd := models.Command{
 			Instructions: []models.Instruction{
 				{
@@ -458,14 +520,15 @@ func sendChoice(m *model) tea.Cmd {
 		}
 
 		if err := m.commander.SendCommand(cmd); err != nil {
-			return statusMsg{message: fmt.Sprintf("Failed: %v", err), isError: true}
+			m.addLog(fmt.Sprintf("❌ Failed to send choice: %v", err), true)
 		}
-		return statusMsg{message: "Choice sent", isError: false}
+		return nil
 	}
 }
 
 func sendOpenURL(m *model) tea.Cmd {
 	return func() tea.Msg {
+		m.addLog("📤 Sending command: std_open_url", false)
 		cmd := models.Command{
 			Instructions: []models.Instruction{
 				{
@@ -480,14 +543,15 @@ func sendOpenURL(m *model) tea.Cmd {
 		}
 
 		if err := m.commander.SendCommand(cmd); err != nil {
-			return statusMsg{message: fmt.Sprintf("Failed: %v", err), isError: true}
+			m.addLog(fmt.Sprintf("❌ Failed to send open URL: %v", err), true)
 		}
-		return statusMsg{message: "Open URL sent", isError: false}
+		return nil
 	}
 }
 
 func sendKinkMessage(m *model) tea.Cmd {
 	return func() tea.Msg {
+		m.addLog("📤 Sending command: kink_message", false)
 		cmd := models.Command{
 			Instructions: []models.Instruction{
 				{
@@ -504,14 +568,15 @@ func sendKinkMessage(m *model) tea.Cmd {
 		}
 
 		if err := m.commander.SendCommand(cmd); err != nil {
-			return statusMsg{message: fmt.Sprintf("Failed: %v", err), isError: true}
+			m.addLog(fmt.Sprintf("❌ Failed to send kink message: %v", err), true)
 		}
-		return statusMsg{message: "Kink message sent", isError: false}
+		return nil
 	}
 }
 
 func sendKinkTTS(m *model) tea.Cmd {
 	return func() tea.Msg {
+		m.addLog("📤 Sending command: kink_tts", false)
 		cmd := models.Command{
 			Instructions: []models.Instruction{
 				{
@@ -527,14 +592,15 @@ func sendKinkTTS(m *model) tea.Cmd {
 		}
 
 		if err := m.commander.SendCommand(cmd); err != nil {
-			return statusMsg{message: fmt.Sprintf("Failed: %v", err), isError: true}
+			m.addLog(fmt.Sprintf("❌ Failed to send TTS: %v", err), true)
 		}
-		return statusMsg{message: "TTS sent", isError: false}
+		return nil
 	}
 }
 
 func sendMultiInstruction(m *model) tea.Cmd {
 	return func() tea.Msg {
+		m.addLog("📤 Sending command: multi-instruction", false)
 		cmd := models.Command{
 			Instructions: []models.Instruction{
 				{
@@ -558,9 +624,9 @@ func sendMultiInstruction(m *model) tea.Cmd {
 		}
 
 		if err := m.commander.SendCommand(cmd); err != nil {
-			return statusMsg{message: fmt.Sprintf("Failed: %v", err), isError: true}
+			m.addLog(fmt.Sprintf("❌ Failed to send multi-instruction: %v", err), true)
 		}
-		return statusMsg{message: "Multi-instruction sent", isError: false}
+		return nil
 	}
 }
 
