@@ -38,8 +38,8 @@ func newWebSocketHandlers(hub *wshub.Hub, jwtManager *auth.JWTManager, userServi
 
 // WebSocket upgrader with proper security settings
 var upgrader = websocket.Upgrader{
-	ReadBufferSize:  1024,
-	WriteBufferSize: 1024,
+	ReadBufferSize:  1024 * 1024, // 1MB
+	WriteBufferSize: 1024 * 1024, // 1MB
 	CheckOrigin: func(r *http.Request) bool {
 		origin := r.Header.Get("Origin")
 		allowedOrigins := []string{

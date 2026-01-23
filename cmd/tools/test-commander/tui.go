@@ -198,7 +198,10 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case wsMsg:
 		if msg.err != nil {
-			m.addLog(fmt.Sprintf("❌ Error: %v", msg.err), true)
+			m.addLog(fmt.Sprintf("❌ WebSocket Error: %v", msg.err), true)
+			// Don't continue reading on fatal errors (connection closed, etc)
+			// User can reconnect by restarting the app
+			return m, nil
 		} else {
 			m.addLog(msg.data, false)
 		}

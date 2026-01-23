@@ -108,8 +108,8 @@ func (c *Commander) Connect() error {
 
 	// Configure dialer with larger read buffer
 	dialer := websocket.Dialer{
-		ReadBufferSize:  1024 * 1024, // 1MB
-		WriteBufferSize: 1024 * 1024, // 1MB
+		ReadBufferSize:  10 * 1024 * 1024, // 10MB
+		WriteBufferSize: 10 * 1024 * 1024, // 10MB
 	}
 
 	// Connect to WebSocket
@@ -118,8 +118,8 @@ func (c *Commander) Connect() error {
 		return fmt.Errorf("failed to connect: %w", err)
 	}
 
-	// Set read limit to 10MB
-	conn.SetReadLimit(10 * 1024 * 1024)
+	// Set read limit to 100MB to handle large server responses
+	conn.SetReadLimit(100 * 1024 * 1024)
 
 	c.conn = conn
 	return nil

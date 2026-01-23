@@ -374,7 +374,7 @@ func (c *Client) ReadPump() {
 		writeWait      = 10 * time.Second    // Time allowed to write a message to peer
 		pongWait       = 60 * time.Second    // Time allowed to read the next pong message from peer
 		pingPeriod     = (pongWait * 9) / 10 // Send pings to peer with this period. Must be less than pongWait
-		maxMessageSize = 512                 // Maximum message size allowed from peer
+		maxMessageSize = 10 * 1024 * 1024    // Maximum message size allowed from peer (10MB)
 	)
 
 	c.conn.SetReadLimit(maxMessageSize)
