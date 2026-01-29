@@ -44,7 +44,7 @@ func setupRoutes(router *gin.Engine, db *gorm.DB, hub *websocket.Hub, cfg *confi
 	userHandlers := newUserHandlers(userService)
 	authHandlers := newAuthHandlers(userService)
 	commandHandlers := newCommandHandlers(commandService)
-	wsHandlers := newWebSocketHandlers(hub, authService.JWTManager, userService)
+	wsHandlers := newWebSocketHandlers(hub, authService.JWTManager, userService, commandService)
 
 	// Health check endpoint
 	router.GET("/health", healthHandlers.HealthCheck)

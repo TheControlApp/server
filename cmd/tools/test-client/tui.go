@@ -11,6 +11,7 @@ import (
 	"github.com/charmbracelet/bubbles/viewport"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
+	"github.com/google/uuid"
 	"github.com/thecontrolapp/server/internal/models"
 )
 
@@ -71,11 +72,16 @@ func initialModel(client *Client) model {
 		logFile = nil
 	}
 
-	return model{
+	m := model{
 		client:  client,
 		logs:    []logMessage{},
 		logFile: logFile,
 	}
+
+	// Request pending commands on connect
+	m.requestPendingCommands()
+
+	return m
 }
 
 func (m model) Init() tea.Cmd {
@@ -356,6 +362,48 @@ func (m *model) processCommand(data string) {
 	m.lastCommand = &cmd
 	m.addLog(fmt.Sprintf("✓ Parsed command with %d instruction(s)", len(cmd.Instructions)), false)
 	m.updateViewports()
+
+	// Send acknowledgment to server
+	m.sendCommandAck(cmd.ID)
+}
+
+// requestPendingCommands sends a message to server requesting all pending commands
+func (m *model) requestPendingCommands() {
+	msg := map[string]string{
+		"type": "fetch_pending_commands",
+	}
+
+	data, err := json.Marshal(msg)
+	if err != nil {
+		m.addLog(fmt.Sprintf("Failed to marshal fetch request: %v", err), true)
+		return
+	}
+
+	if err := m.client.conn.WriteMessage(1, data); err != nil {
+		m.addLog(fmt.Sprintf("Failed to send fetch request: %v", err), true)
+	} else {
+		m.addLog("📬 Requested pending commands from server", false)
+	}
+}
+
+// sendCommandAck sends acknowledgment to server that command was received
+func (m *model) sendCommandAck(commandID uuid.UUID) {
+	ack := map[string]string{
+		"type":       "command_ack",
+		"command_id": commandID.String(),
+	}
+
+	data, err := json.Marshal(ack)
+	if err != nil {
+		m.addLog(fmt.Sprintf("Failed to marshal ack: %v", err), true)
+		return
+	}
+
+	if err := m.client.conn.WriteMessage(1, data); err != nil {
+		m.addLog(fmt.Sprintf("Failed to send ack: %v", err), true)
+	} else {
+		m.addLog(fmt.Sprintf("✅ Acknowledged command %s", commandID.String()[:8]), false)
+	}
 }
 
 func waitForWebSocketMessage(c *Client) tea.Cmd {

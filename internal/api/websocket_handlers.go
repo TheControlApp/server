@@ -18,16 +18,18 @@ import (
 )
 
 type WebSocketHandlers struct {
-	Hub         *wshub.Hub
-	JWTManager  *auth.JWTManager
-	UserService *services.UserService
+	Hub            *wshub.Hub
+	JWTManager     *auth.JWTManager
+	UserService    *services.UserService
+	CommandService *services.CommandService
 }
 
-func newWebSocketHandlers(hub *wshub.Hub, jwtManager *auth.JWTManager, userService *services.UserService) *WebSocketHandlers {
+func newWebSocketHandlers(hub *wshub.Hub, jwtManager *auth.JWTManager, userService *services.UserService, commandService *services.CommandService) *WebSocketHandlers {
 	handlers := &WebSocketHandlers{
-		Hub:         hub,
-		JWTManager:  jwtManager,
-		UserService: userService,
+		Hub:            hub,
+		JWTManager:     jwtManager,
+		UserService:    userService,
+		CommandService: commandService,
 	}
 
 	// Set this handler as the message handler for the hub
@@ -138,6 +140,10 @@ func (h *WebSocketHandlers) HandleMessage(client *wshub.Client, message []byte) 
 			h.handleAuthMessage(client, msg)
 		case "ping":
 			h.handlePingMessage(client, msg)
+		case "fetch_pending_commands":
+			h.handleFetchPendingCommands(client)
+		case "command_ack":
+			h.handleCommandAck(client, msg)
 		}
 		return
 	}
@@ -189,8 +195,10 @@ func (h *WebSocketHandlers) handlePingMessage(client *wshub.Client, msg map[stri
 // isSystemMessage checks if a message type is a system message (not a command)
 func (h *WebSocketHandlers) isSystemMessage(msgType string) bool {
 	systemTypes := map[string]bool{
-		"ping": true,
-		"auth": true,
+		"ping":                   true,
+		"auth":                   true,
+		"fetch_pending_commands": true,
+		"command_ack":            true,
 	}
 	return systemTypes[msgType]
 }
@@ -227,6 +235,12 @@ func (h *WebSocketHandlers) handleCommandMessage(client *wshub.Client, message [
 	var legacyMsg map[string]interface{}
 	if err := json.Unmarshal(message, &legacyMsg); err == nil {
 		if msgType, ok := legacyMsg["type"].(string); ok {
+			// Skip system messages - they should not be treated as commands
+			if h.isSystemMessage(msgType) {
+				log.Printf("Skipping system message type: %s", msgType)
+				return
+			}
+
 			// Convert legacy message to proper Command structure
 			instruction := models.Instruction{
 				Type:    msgType,
@@ -307,8 +321,17 @@ func (h *WebSocketHandlers) handleCommandMessage(client *wshub.Client, message [
 	h.broadcastCommand(client, command)
 }
 
-// broadcastCommand broadcasts a command to all connected clients
+// broadcastCommand stores and broadcasts a command to all connected clients
 func (h *WebSocketHandlers) broadcastCommand(client *wshub.Client, command models.Command) {
+	// Store command in database first
+	if err := h.CommandService.CreateCommand(&command); err != nil {
+		log.Printf("Error storing command in database: %v", err)
+		h.sendErrorMessage(client, "Failed to store command")
+		return
+	}
+
+	log.Printf("Command %s stored in database", command.ID)
+
 	// Create a clean broadcast structure without relationship data
 	broadcastCommand := struct {
 		ID           uuid.UUID            `json:"id"`
@@ -338,6 +361,80 @@ func (h *WebSocketHandlers) broadcastCommand(client *wshub.Client, command model
 	}
 
 	h.Hub.BroadcastRaw(commandBytes)
+}
+
+// handleFetchPendingCommands sends all pending commands to the requesting client in FIFO order
+func (h *WebSocketHandlers) handleFetchPendingCommands(client *wshub.Client) {
+	if !client.IsAuthenticated() {
+		h.sendErrorMessage(client, "Authentication required to fetch commands")
+		return
+	}
+
+	userID := client.GetUserID()
+	commands, err := h.CommandService.GetPendingCommandsForUser(userID)
+	if err != nil {
+		log.Printf("Error fetching pending commands for user %v: %v", userID, err)
+		h.sendErrorMessage(client, "Failed to fetch pending commands")
+		return
+	}
+
+	log.Printf("Sending %d pending commands to user %v", len(commands), userID)
+
+	// Send each command individually in FIFO order
+	for _, command := range commands {
+		commandBytes, err := json.Marshal(command)
+		if err != nil {
+			log.Printf("Error marshaling command %v: %v", command.ID, err)
+			continue
+		}
+
+		client.Send() <- commandBytes
+	}
+
+	// Send completion message
+	response := map[string]interface{}{
+		"type":  "pending_commands_complete",
+		"count": len(commands),
+	}
+	h.sendMessage(client, response)
+}
+
+// handleCommandAck processes command acknowledgment from clients
+func (h *WebSocketHandlers) handleCommandAck(client *wshub.Client, msg map[string]interface{}) {
+	if !client.IsAuthenticated() {
+		h.sendErrorMessage(client, "Authentication required for acknowledgments")
+		return
+	}
+
+	commandIDStr, ok := msg["command_id"].(string)
+	if !ok {
+		h.sendErrorMessage(client, "Missing command_id in acknowledgment")
+		return
+	}
+
+	commandID, err := uuid.Parse(commandIDStr)
+	if err != nil {
+		h.sendErrorMessage(client, "Invalid command_id format")
+		return
+	}
+
+	userID := client.GetUserID()
+
+	// Mark command as delivered/delete if targeted
+	if err := h.CommandService.MarkCommandDelivered(commandID, userID); err != nil {
+		log.Printf("Error marking command %v as delivered: %v", commandID, err)
+		h.sendErrorMessage(client, "Failed to acknowledge command")
+		return
+	}
+
+	log.Printf("Command %v acknowledged by user %v", commandID, userID)
+
+	// Optionally send confirmation back
+	response := map[string]interface{}{
+		"type":       "ack_received",
+		"command_id": commandID.String(),
+	}
+	h.sendMessage(client, response)
 }
 
 // requiresAuthenticationForCommand checks if a command requires authentication
