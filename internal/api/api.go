@@ -6,6 +6,7 @@ import (
 	"github.com/gin-gonic/gin"
 	swaggerFiles "github.com/swaggo/files"
 	ginSwagger "github.com/swaggo/gin-swagger"
+	"github.com/thecontrolapp/server/internal/api/handlers"
 	"github.com/thecontrolapp/server/internal/auth"
 	"github.com/thecontrolapp/server/internal/config"
 	"github.com/thecontrolapp/server/internal/services"
@@ -39,11 +40,11 @@ func setupRoutes(router *gin.Engine, db *gorm.DB, hub *websocket.Hub, cfg *confi
 	userService := services.NewUserService(db, authService)
 	commandService := services.NewCommandService(db)
 
-	// Initialize handlers - import them locally to avoid cycles
-	healthHandlers := newHealthHandlers()
-	userHandlers := newUserHandlers(userService)
-	authHandlers := newAuthHandlers(userService)
-	commandHandlers := newCommandHandlers(commandService)
+	// Initialize handlers from handlers package
+	healthHandlers := handlers.NewHealthHandlers()
+	userHandlers := handlers.NewUserHandlers(userService)
+	authHandlers := handlers.NewAuthHandlers(userService)
+	commandHandlers := handlers.NewCommandHandlers(commandService)
 	wsHandlers := newWebSocketHandlers(hub, authService.JWTManager, userService, commandService)
 
 	// Health check endpoint
